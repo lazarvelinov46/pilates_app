@@ -28,10 +28,25 @@ class _BookingScreenState extends State<BookingScreen> {
   List<Session> availableSessions = [];
   bool isLoading = false;
 
+  Set<String> _bookedSessionIds = {};
+  bool _loadingBookings = true;
+
+  bool _bookingInProgress = false;
+
+
   @override
   void initState() {
     super.initState();
+    _loadUserBookings();
     _loadSessions();
+  }
+
+  Future<void> _loadUserBookings() async {
+    final bookings = await _bookingService.getUserActiveBookings(userId);
+    setState(() {
+      _bookedSessionIds = bookings;
+      _loadingBookings = false;
+    });
   }
 
   Future<void> _loadSessions() async {
@@ -52,16 +67,47 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _confirmBooking() async {
     if (selectedSession == null) return;
 
-    await _bookingService.bookSession(
-      userId: userId,
-      sessionId: selectedSession!.id,
-    );
+    setState(() => _bookingInProgress = true);
 
-    Navigator.pop(context);
+    try {
+      await _bookingService.bookSession(
+        userId: userId,
+        sessionId: selectedSession!.id,
+      );
+
+      setState(() {
+        _bookedSessionIds.add(selectedSession!.id);
+        selectedSession = null;
+      });
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }finally{
+      setState(() => _bookingInProgress = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingBookings) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final bool isFull =
+    selectedSession != null &&
+    selectedSession!.bookedCount >= selectedSession!.capacity;
+
+    final bool alreadyBooked =
+        selectedSession != null &&
+        _bookedSessionIds.contains(selectedSession!.id);
+
+    final bool canBook =
+        selectedSession != null && !isFull && !alreadyBooked;
     return Scaffold(
       appBar: AppBar(title: const Text("Book a Session")),
       body: Padding(
@@ -79,12 +125,20 @@ class _BookingScreenState extends State<BookingScreen> {
               TimeSlotGrid(
                 sessions: availableSessions,
                 selectedSession: selectedSession,
-                onSelect: (s) => setState(() => selectedSession = s),
+                bookedSessionIds: _bookedSessionIds, // 🔹 pass down
+                onSelect: (s) {
+                  if (_bookedSessionIds.contains(s.id)) return;
+                  setState(() => selectedSession = s);
+                },
               ),
+            
             const Spacer(),
             ConfirmButton(
-              enabled: selectedSession != null,
+              enabled: canBook,
               onPressed: _confirmBooking,
+              isLoading: _bookingInProgress,
+              isFull: isFull,
+              alreadyBooked: alreadyBooked,
             ),
           ],
         ),

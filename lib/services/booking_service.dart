@@ -106,4 +106,19 @@ class BookingService {
       }
     });
   }
+
+  
+  Future<Set<String>> getUserActiveBookings(String userId) async {
+  final snap = await _db
+      .collection('bookings')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: 'active')
+      .get();
+
+  return snap.docs
+      .map((d) => d['sessionId'] as String)
+      .toSet();
+  }
+
+
 }
