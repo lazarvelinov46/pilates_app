@@ -5,7 +5,7 @@ class SessionService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Get all active sessions for a specific day
-  Future<List<Session>> getSessionsForDay(DateTime day) async {
+  Future<List<Session>> getSessionsForDate(DateTime day) async {
     final startOfDay = DateTime(day.year, day.month, day.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
