@@ -15,6 +15,27 @@ class BookingService {
     final bookingsRef = _db.collection('bookings');
 
     await _db.runTransaction((tx) async {
+      final userSnap = await tx.get(userRef);
+      final userData = userSnap.data()!;
+
+      final promo = userData['promotion'];
+      if (promo == null) {
+        throw Exception('No active promotion');
+      }
+
+      final expiresAt = (promo['expiresAt'] as Timestamp).toDate();
+      final total = promo['total'];
+      final booked = promo['booked'];
+      final attended = promo['attended'];
+
+      if (DateTime.now().isAfter(expiresAt)) {
+        throw Exception('Promotion expired');
+      }
+
+      if (total - booked - attended <= 0) {
+        throw Exception('No sessions left');
+      }
+
       final sessionSnap = await tx.get(sessionRef);
       if (!sessionSnap.exists) {
         throw Exception('Session does not exist');
