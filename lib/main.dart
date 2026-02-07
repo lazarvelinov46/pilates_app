@@ -4,7 +4,8 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/booking/booking_screen.dart'
+import 'screens/booking/booking_screen.dart';
+import 'screens/main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +34,7 @@ class AuthGate extends StatelessWidget {
       stream: _authService.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return const HomeScreen(); // placeholder
+          return const MainShell(); // placeholder
         } else {
           return LoginScreen(authService: _authService);
         }

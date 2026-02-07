@@ -92,10 +92,11 @@ class BookingService {
 
       tx.update(bookingRef, {
         'status': 'cancelled',
+        'cancelledAt': Timestamp.now(),
       });
 
       tx.update(sessionRef, {
-        'bookedCount': bookedCount - 1,
+        'bookedCount': bookedCount > 0 ? bookedCount - 1 : 0,
       });
 
       // Refund only if allowed
