@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 enum BookingStatus { active, cancelled }
 
@@ -18,6 +19,10 @@ class Booking {
     required this.createdAt,
     required this.status,
   });
+
+  String get formattedDateTime {
+    return DateFormat('EEE, dd MMM • HH:mm').format(sessionStartsAt);
+  }
 
   bool canCancel() {
     final now = DateTime.now();
