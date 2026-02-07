@@ -35,33 +35,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Future<void> _cancel(Booking booking) async {
+    await _bookingService.cancelBooking(booking: booking);
+    _loadBookings(); // refresh after cancel
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _bookings.isEmpty
-              ? const Center(child: Text('No active bookings'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _bookings.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 24),
-                  itemBuilder: (context, index) {
-                    final booking = _bookings[index];
+      body: _bookings.isEmpty
+          ? const Center(child: Text('No active bookings'))
+          : ListView.builder(
+              itemCount: _bookings.length,
+              itemBuilder: (context, i) {
+                final b = _bookings[i];
 
-                    return ListTile(
-                      leading: const Icon(Icons.event),
-                      title: Text(
-                        booking.sessionId ?? 'Session',
+                return Card(
+                  margin: const EdgeInsets.all(12),
+                  child: ListTile(
+                    title: Text(b.formattedDateTime),
+                    trailing: TextButton(
+                      onPressed: b.canCancel() ? () => _cancel(b) : null,
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: b.canCancel() ? Colors.red : Colors.grey,
+                        ),
                       ),
-                      subtitle: Text(
-                        booking.formattedDateTime,
-                      ),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
