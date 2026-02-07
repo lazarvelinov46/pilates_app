@@ -46,4 +46,36 @@ class SessionService {
 
     return snap.docs.map(Session.fromFirestore).toList();
   }
+
+  Future<void> createSession({
+    required DateTime startsAt,
+    required int capacity,
+  }) async {
+    await _db.collection('sessions').add({
+      'startsAt': Timestamp.fromDate(startsAt),
+      'capacity': capacity,
+      'bookedCount': 0,
+      'active': true,
+      'createdAt': Timestamp.now(),
+    });
+  }
+
+  Future<void> updateSession({
+    required String sessionId,
+    required DateTime startsAt,
+    required int capacity,
+  }) async {
+    await _db.collection('sessions').doc(sessionId).update({
+      'startsAt': Timestamp.fromDate(startsAt),
+      'capacity': capacity,
+    });
+  }
+
+  Future<void> deactivateSession(String sessionId) async {
+    await _db.collection('sessions').doc(sessionId).update({
+      'active': false,
+    });
+  }
+
+
 }

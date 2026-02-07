@@ -5,6 +5,7 @@ import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/booking/booking_screen.dart';
+import 'screens/admin/admin_session_screen.dart';
 import 'screens/main_shell.dart';
 
 void main() async {
@@ -34,7 +35,7 @@ class AuthGate extends StatelessWidget {
       stream: _authService.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return const MainShell(); // placeholder
+          return  AdminSessionsScreen(); // placeholder
         } else {
           return LoginScreen(authService: _authService);
         }
