@@ -22,12 +22,34 @@ class Session {
   bool get isFull => bookedCount >= capacity;
 
   factory Session.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>?;
+
+    if (data == null) {
+      throw Exception('Session ${doc.id} has no data');
+    }
+
+    final startsTimestamp = data['startsAt'];
+    final endsTimestamp = data['endsAt'];
+
+    if (startsTimestamp == null || startsTimestamp is! Timestamp) {
+      throw Exception('Session ${doc.id} has invalid startsAt');
+    }
+
+    DateTime startsAt = startsTimestamp.toDate();
+
+    DateTime endsAt;
+
+    if (endsTimestamp != null && endsTimestamp is Timestamp) {
+      endsAt = endsTimestamp.toDate();
+    } else {
+      // Fallback: if endsAt missing, auto-calculate
+      endsAt = startsAt.add(const Duration(hours: 1));
+    }
 
     return Session(
       id: doc.id,
-      startsAt: (data['startsAt'] as Timestamp).toDate(),
-      endsAt: (data['endsAt'] as Timestamp).toDate(),
+      startsAt: startsAt,
+      endsAt: endsAt,
       capacity: data['capacity'],
       bookedCount: data['bookedCount'],
       active: data['active'],

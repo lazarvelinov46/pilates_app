@@ -144,17 +144,27 @@ class BookingService {
   }
 
   Future<List<Booking>> getActiveBookingsForUser(String userId) async {
-  final snap = await _db
-      .collection('bookings')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: 'active')
-      .orderBy('startsAt')
-      .get();
+    final snap = await _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .orderBy('startsAt')
+        .get();
 
-  return snap.docs
-      .map((d) => Booking.fromFirestore(d))
-      .toList();
-}
+    return snap.docs
+        .map((d) => Booking.fromFirestore(d))
+        .toList();
+  }
+
+  Stream<List<Booking>> getActiveBookingsForUserStream(String userId) {
+    return _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .orderBy('startsAt')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+  }
 
 
 }

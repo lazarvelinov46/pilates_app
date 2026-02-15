@@ -26,6 +26,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Session? selectedSession;
   String userId = FirebaseAuth.instance.currentUser!.uid;
   List<Session> availableSessions = [];
+  Set<DateTime> _availableDates = {};
   bool isLoading = false;
 
   Set<String> _bookedSessionIds = {};
@@ -38,6 +39,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void initState() {
     super.initState();
     _loadUserBookings();
+    _loadAvailableDates();
     _loadSessions();
   }
 
@@ -46,6 +48,13 @@ class _BookingScreenState extends State<BookingScreen> {
     setState(() {
       _bookedSessionIds = bookings;
       _loadingBookings = false;
+    });
+  }
+
+  Future<void> _loadAvailableDates() async {
+    final dates = await _sessionService.getAvailableSessionDates();
+    setState(() {
+      _availableDates = dates;
     });
   }
 
@@ -117,6 +126,7 @@ class _BookingScreenState extends State<BookingScreen> {
             DateSelector(
               selectedDate: selectedDate,
               onChanged: _onDateChanged,
+              availableDates: _availableDates,
             ),
             const SizedBox(height: 16),
             if (isLoading)

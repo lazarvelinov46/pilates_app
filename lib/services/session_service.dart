@@ -23,7 +23,10 @@ class SessionService {
         .orderBy('startsAt')
         .get();
 
-    return snap.docs.map(Session.fromFirestore).toList();
+    return snap.docs
+      .where((d) => d.data()['startsAt'] != null)
+      .map((d) => Session.fromFirestore(d))
+      .toList();
   }
 
   /// Get all sessions in a date range (for calendar dots)
@@ -51,8 +54,10 @@ class SessionService {
     required DateTime startsAt,
     required int capacity,
   }) async {
+    final endsAt = startsAt.add(const Duration(hours: 1));
     await _db.collection('sessions').add({
       'startsAt': Timestamp.fromDate(startsAt),
+      'endsAt': Timestamp.fromDate(endsAt),
       'capacity': capacity,
       'bookedCount': 0,
       'active': true,
@@ -77,5 +82,24 @@ class SessionService {
     });
   }
 
+  Future<Set<DateTime>> getAvailableSessionDates() async {
+    final now = DateTime.now();
+    final end = now.add(const Duration(days: 365));
+
+    final snap = await FirebaseFirestore.instance
+        .collection('sessions')
+        .where('startsAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(now))
+        .where('startsAt',
+            isLessThan: Timestamp.fromDate(end))
+        .where('active', isEqualTo: true)
+        .get();
+
+    return snap.docs.map((doc) {
+      final date =
+          (doc['startsAt'] as Timestamp).toDate();
+      return DateTime(date.year, date.month, date.day);
+    }).toSet();
+  }
 
 }
