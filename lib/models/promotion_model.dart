@@ -15,6 +15,10 @@ class Promotion {
 
   int get remaining => totalSessions - attended - booked;
 
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+
+  bool canBook() => !isExpired && remaining > 0;
+
   factory Promotion.fromMap(Map<String, dynamic> map) {
     return Promotion(
       totalSessions: map['totalSessions'],

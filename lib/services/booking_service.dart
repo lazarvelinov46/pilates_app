@@ -72,6 +72,7 @@ class BookingService {
         'sessionStartsAt': sessionData['startsAt'],
         'createdAt': Timestamp.now(),
         'status': 'active',
+        'reminderSent': false
       });
 
       tx.update(sessionRef, {

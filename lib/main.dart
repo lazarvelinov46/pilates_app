@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/booking/booking_screen.dart';
@@ -28,6 +29,9 @@ class MyApp extends StatelessWidget {
 }
 class AuthGate extends StatelessWidget {
   final AuthService _authService = AuthService();
+  final NotificationService _notificationService = NotificationService();
+
+  AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +39,13 @@ class AuthGate extends StatelessWidget {
       stream: _authService.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return  AdminSessionsScreen(); // placeholder
+          final user = snapshot.data!;
+          
+          // 🔔 Initialize notifications HERE
+          //_notificationService.initialize(user.uid);
+
+          //return AdminSessionsScreen();
+          return MainShell();
         } else {
           return LoginScreen(authService: _authService);
         }

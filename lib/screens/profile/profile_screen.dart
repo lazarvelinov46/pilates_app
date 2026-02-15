@@ -36,43 +36,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _cancel(Booking booking) async {
-    await _bookingService.cancelBooking(booking: booking);
-    _loadBookings(); // refresh after cancel
+    try {
+      await _bookingService.cancelBooking(booking: booking);
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: _bookings.isEmpty
-          ? const Center(child: Text('No active bookings'))
-          : ListView.builder(
-              itemCount: _bookings.length,
-              itemBuilder: (context, i) {
-                final b = _bookings[i];
+ Widget build(BuildContext context) {
+  final userId = FirebaseAuth.instance.currentUser!.uid;
 
-                return Card(
-                  margin: const EdgeInsets.all(12),
-                  child: ListTile(
-                    title: Text(b.formattedDateTime),
-                    trailing: TextButton(
-                      onPressed: b.canCancel() ? () => _cancel(b) : null,
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: b.canCancel() ? Colors.red : Colors.grey,
-                        ),
-                      ),
+  return Scaffold(
+    appBar: AppBar(title: const Text('Profile')),
+    body: StreamBuilder<List<Booking>>(
+      stream: _bookingService.getActiveBookingsForUserStream(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final bookings = snapshot.data ?? [];
+
+        if (bookings.isEmpty) {
+          return const Center(child: Text('No active bookings'));
+        }
+
+        return ListView.builder(
+          itemCount: bookings.length,
+          itemBuilder: (context, i) {
+            final b = bookings[i];
+            return Card(
+              margin: const EdgeInsets.all(12),
+              child: ListTile(
+                title: Text(b.formattedDateTime),
+                trailing: TextButton(
+                  onPressed: b.canCancel()
+                      ? () async {
+                          await _bookingService.cancelBooking(booking: b);
+                        }
+                      : null,
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: b.canCancel() ? Colors.red : Colors.grey,
                     ),
                   ),
-                );
-              },
-            ),
-    );
-  }
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
+}
 }

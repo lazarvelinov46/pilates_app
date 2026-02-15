@@ -1,1 +1,43 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"pilates-studio-da2a9","appId":"1:762822830497:android:7ac3d94c7994db45d143e0","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"pilates-studio-da2a9","configurations":{"android":"1:762822830497:android:7ac3d94c7994db45d143e0","ios":"1:762822830497:ios:28f2caf19143e5e9d143e0","macos":"1:762822830497:ios:28f2caf19143e5e9d143e0","web":"1:762822830497:web:b729c9119c7a8c01d143e0","windows":"1:762822830497:web:24a58d8f77efe7e3d143e0"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "pilates-studio-da2a9",
+          "appId": "1:762822830497:android:7ac3d94c7994db45d143e0",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "pilates-studio-da2a9",
+          "configurations": {
+            "android": "1:762822830497:android:7ac3d94c7994db45d143e0",
+            "ios": "1:762822830497:ios:28f2caf19143e5e9d143e0",
+            "macos": "1:762822830497:ios:28f2caf19143e5e9d143e0",
+            "web": "1:762822830497:web:b729c9119c7a8c01d143e0",
+            "windows": "1:762822830497:web:24a58d8f77efe7e3d143e0"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}

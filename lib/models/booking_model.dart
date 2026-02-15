@@ -10,6 +10,7 @@ class Booking {
   final DateTime sessionStartsAt;
   final DateTime createdAt;
   final BookingStatus status;
+  final bool reminderSent; 
 
   Booking({
     required this.id,
@@ -18,6 +19,7 @@ class Booking {
     required this.sessionStartsAt,
     required this.createdAt,
     required this.status,
+    required this.reminderSent,
   });
 
   String get formattedDateTime {
@@ -43,6 +45,7 @@ class Booking {
       status: data['status'] == 'cancelled'
           ? BookingStatus.cancelled
           : BookingStatus.active,
+      reminderSent: data['reminderSent'] ?? false
     );
   }
 
@@ -54,6 +57,7 @@ class Booking {
           Timestamp.fromDate(sessionStartsAt),
       'createdAt': Timestamp.fromDate(createdAt),
       'status': status.name,
+      'reminderSent': reminderSent
     };
   }
 }
