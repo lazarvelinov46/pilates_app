@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import 'main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthService authService;
@@ -36,14 +38,38 @@ class _LoginScreenState extends State<LoginScreen> {
           surname: _surnameController.text.trim(),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
 
-    setState(() => _loading = false);
-  }
+      if (!mounted) return;
+
+      // ✅ Navigate to MainShell on success
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } on FirebaseAuthException catch (e) {
+        String message;
+
+        switch (e.code) {
+          case 'user-not-found':
+          case 'wrong-password':
+            message = 'Wrong email or password.';
+            break;
+          case 'email-already-in-use':
+            message = 'This email is already registered.';
+            break;
+          case 'invalid-email':
+            message = 'Invalid email format.';
+            break;
+          default:
+            message = 'Authentication failed.';
+        }
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 20),
-
+              /*
               ElevatedButton(
                 onPressed: _loading
                     ? null
@@ -106,6 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                 child: const Text('Sign in with Google'),
               ),
+              */
             ],
           ),
         ),

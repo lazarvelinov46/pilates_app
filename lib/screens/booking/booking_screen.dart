@@ -10,6 +10,7 @@ import '../../services/booking_service.dart';
 import 'widgets/date_selector.dart';
 import 'widgets/time_slot_grid.dart';
 import 'widgets/confirm_button.dart';
+import 'widgets/session_card.dart';
 
 
 class BookingScreen extends StatefulWidget {
@@ -73,31 +74,23 @@ class _BookingScreenState extends State<BookingScreen> {
     _loadSessions();
   }
 
-  Future<void> _confirmBooking() async {
-    if (selectedSession == null) return;
-
+  Future<void> _confirmBooking(Session session) async {
     setState(() => _bookingInProgress = true);
 
     try {
       await _bookingService.bookSession(
         userId: userId,
-        sessionId: selectedSession!.id,
+        sessionId: session.id,
       );
 
       setState(() {
-        _bookedSessionIds.add(selectedSession!.id);
-        selectedSession = null;
+        _bookedSessionIds.add(session.id);
       });
 
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }finally{
+    } finally {
       setState(() => _bookingInProgress = false);
     }
-  }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -132,16 +125,21 @@ class _BookingScreenState extends State<BookingScreen> {
             if (isLoading)
               const CircularProgressIndicator()
             else
-              TimeSlotGrid(
-                sessions: availableSessions,
-                selectedSession: selectedSession,
-                bookedSessionIds: _bookedSessionIds, // 🔹 pass down
-                onSelect: (s) {
-                  if (_bookedSessionIds.contains(s.id)) return;
-                  setState(() => selectedSession = s);
-                },
+              Expanded(
+                child: ListView.builder(
+                  itemCount: availableSessions.length,
+                  itemBuilder: (context, index) {
+                    final session = availableSessions[index];
+
+                    return SessionCard(
+                      session: session,
+                      alreadyBooked: _bookedSessionIds.contains(session.id),
+                      onBook: () => _confirmBooking(session),
+                    );
+                  },
+                ),
               ),
-            
+            /*
             const Spacer(),
             ConfirmButton(
               enabled: canBook,
@@ -149,7 +147,7 @@ class _BookingScreenState extends State<BookingScreen> {
               isLoading: _bookingInProgress,
               isFull: isFull,
               alreadyBooked: alreadyBooked,
-            ),
+            ),*/
           ],
         ),
       ),

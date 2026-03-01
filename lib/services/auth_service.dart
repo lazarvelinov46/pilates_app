@@ -56,6 +56,7 @@ class AuthService {
   /// =============================
   /// GOOGLE LOGIN
   /// =============================
+  /// 
   Future<User?> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser =
         await _googleSignIn.signIn();
@@ -105,7 +106,7 @@ class AuthService {
   /// SIGN OUT
   /// =============================
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    //await _googleSignIn.signOut();
     await _auth.signOut();
   }
 

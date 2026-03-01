@@ -38,6 +38,9 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder(
       stream: _authService.authStateChanges(),
       builder: (context, snapshot) {
+        
+        return LoginScreen(authService: _authService);
+        /*
         if (snapshot.hasData) {
           final user = snapshot.data!;
           
@@ -49,6 +52,7 @@ class AuthGate extends StatelessWidget {
         } else {
           return LoginScreen(authService: _authService);
         }
+        */
       },
     );
   }
