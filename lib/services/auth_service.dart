@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../models/user_model.dart';
+import '../models/user_preferences_model.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -10,7 +13,7 @@ class AuthService {
   /// =============================
   /// EMAIL + PASSWORD REGISTER
   /// =============================
-  Future<User?> registerWithEmail({
+  Future<AppUser> registerWithEmail({
     required String email,
     required String password,
     required String name,
@@ -23,25 +26,30 @@ class AuthService {
 
     final user = credential.user;
 
-    if (user != null) {
-      await _db.collection('users').doc(user.uid).set({
-        'role': 'user',
-        'name': name,
-        'surname': surname,
-        'email': email,
-        'createdAt': Timestamp.now(),
-        'promotion': null,
-        'preferences': {},
-      });
+    if (user == null) {
+      throw Exception("User creation failed.");
     }
 
-    return user;
+    final appUser = AppUser(
+      uid: user.uid,
+      role: UserRole.user,
+      name: name,
+      surname: surname,
+      email: email,
+      createdAt: DateTime.now(),
+      promotion: null,
+      preferences: UserPreferences.defaultPreferences(),
+    );
+
+    await _db.collection('users').doc(user.uid).set(appUser.toMap());
+
+    return appUser;
   }
 
   /// =============================
   /// EMAIL + PASSWORD LOGIN
   /// =============================
-  Future<User?> signInWithEmail({
+  Future<AppUser> signInWithEmail({
     required String email,
     required String password,
   }) async {
@@ -50,14 +58,19 @@ class AuthService {
       password: password,
     );
 
-    return credential.user;
+    final user = credential.user;
+
+    if (user == null) {
+      throw Exception("Login failed.");
+    }
+
+    return await _getUserFromFirestore(user.uid);
   }
 
   /// =============================
   /// GOOGLE LOGIN
   /// =============================
-  /// 
-  Future<User?> signInWithGoogle() async {
+  Future<AppUser?> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser =
         await _googleSignIn.signIn();
 
@@ -76,23 +89,42 @@ class AuthService {
 
     final user = userCredential.user;
 
-    if (user != null) {
-      final doc = await _db.collection('users').doc(user.uid).get();
-
-      if (!doc.exists) {
-        await _db.collection('users').doc(user.uid).set({
-          'role': 'user',
-          'name': user.displayName ?? '',
-          'surname': '',
-          'email': user.email ?? '',
-          'createdAt': Timestamp.now(),
-          'promotion': null,
-          'preferences': {},
-        });
-      }
+    if (user == null) {
+      throw Exception("Google authentication failed.");
     }
 
-    return user;
+    final doc = await _db.collection('users').doc(user.uid).get();
+
+    if (!doc.exists) {
+      final newUser = AppUser(
+        uid: user.uid,
+        role: UserRole.user,
+        name: user.displayName ?? '',
+        surname: '',
+        email: user.email ?? '',
+        createdAt: DateTime.now(),
+        promotion: null,
+        preferences: UserPreferences.defaultPreferences(),
+      );
+
+      await _db.collection('users').doc(user.uid).set(newUser.toMap());
+      return newUser;
+    }
+
+    return AppUser.fromFirestore(doc);
+  }
+
+  /// =============================
+  /// FETCH USER FROM FIRESTORE
+  /// =============================
+  Future<AppUser> _getUserFromFirestore(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+
+    if (!doc.exists) {
+      throw Exception("User document does not exist.");
+    }
+
+    return AppUser.fromFirestore(doc);
   }
 
   /// =============================
@@ -106,7 +138,7 @@ class AuthService {
   /// SIGN OUT
   /// =============================
   Future<void> signOut() async {
-    //await _googleSignIn.signOut();
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
@@ -117,5 +149,5 @@ class AuthService {
     return _auth.authStateChanges();
   }
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentFirebaseUser => _auth.currentUser;
 }

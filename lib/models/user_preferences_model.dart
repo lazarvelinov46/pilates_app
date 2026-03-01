@@ -15,6 +15,12 @@ class UserPreferences {
       notifications: map['notifications'] ?? true,
     );
   }
+  factory UserPreferences.defaultPreferences() {
+    return UserPreferences(
+      language: 'en',
+      notifications: true
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {

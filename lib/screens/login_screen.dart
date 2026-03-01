@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../models/user_model.dart';
 import 'main_shell.dart';
+import 'admin/admin_session_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthService authService;
@@ -25,13 +27,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
 
     try {
+      AppUser appUser;
+
       if (_isLogin) {
-        await widget.authService.signInWithEmail(
+        appUser = await widget.authService.signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
       } else {
-        await widget.authService.registerWithEmail(
+        appUser = await widget.authService.registerWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
@@ -41,35 +45,50 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // ✅ Navigate to MainShell on success
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainShell()),
-      );
+      if (appUser.role == UserRole.admin) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => AdminSessionsScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainShell()),
+        );
+      }
+
     } on FirebaseAuthException catch (e) {
-        String message;
+      if (!mounted) return;
 
-        switch (e.code) {
-          case 'user-not-found':
-          case 'wrong-password':
-            message = 'Wrong email or password.';
-            break;
-          case 'email-already-in-use':
-            message = 'This email is already registered.';
-            break;
-          case 'invalid-email':
-            message = 'Invalid email format.';
-            break;
-          default:
-            message = 'Authentication failed.';
-        }
+      String message;
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+      switch (e.code) {
+        case 'user-not-found':
+        case 'wrong-password':
+          message = 'Wrong email or password.';
+          break;
+        case 'email-already-in-use':
+          message = 'This email is already registered.';
+          break;
+        case 'invalid-email':
+          message = 'Invalid email format.';
+          break;
+        default:
+          message = 'Authentication failed.';
       }
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Something went wrong.")),
+      );
     }
+
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
