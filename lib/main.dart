@@ -8,6 +8,7 @@ import 'screens/login_screen.dart';
 import 'screens/booking/booking_screen.dart';
 import 'screens/admin/admin_session_screen.dart';
 import 'screens/main_shell.dart';
+import 'models/user_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,21 +39,47 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder(
       stream: _authService.authStateChanges(),
       builder: (context, snapshot) {
-        
-        return LoginScreen(authService: _authService);
-        /*
-        if (snapshot.hasData) {
-          final user = snapshot.data!;
-          
-          // 🔔 Initialize notifications HERE
-          //_notificationService.initialize(user.uid);
+        // 🔄 Loading auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-          //return AdminSessionsScreen();
-          return MainShell();
-        } else {
+        // ❌ Not logged in
+        if (!snapshot.hasData) {
           return LoginScreen(authService: _authService);
         }
-        */
+
+        // ✅ Logged in → fetch AppUser
+        return FutureBuilder(
+          future: _authService.getCurrentAppUser(),
+          builder: (context, userSnapshot) {
+
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (!userSnapshot.hasData) {
+              return const Scaffold(
+                body: Center(child: Text("User data error")),
+              );
+            }
+
+            final appUser = userSnapshot.data!;
+
+            // 🔔 Initialize notifications here if needed
+            //_notificationService.(appUser.uid);
+
+            if (appUser.role == UserRole.admin) {
+              return AdminSessionsScreen();
+            } else {
+              return const MainShell();
+            }
+          },
+        );
       },
     );
   }

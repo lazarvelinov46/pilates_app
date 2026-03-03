@@ -9,6 +9,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
 
   /// =============================
   /// EMAIL + PASSWORD REGISTER
@@ -147,6 +148,12 @@ class AuthService {
   /// =============================
   Stream<User?> authStateChanges() {
     return _auth.authStateChanges();
+  }
+  Future<AppUser?> getCurrentAppUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    return await _getUserFromFirestore(user.uid);
   }
 
   User? get currentFirebaseUser => _auth.currentUser;

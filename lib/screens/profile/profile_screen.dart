@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,7 +14,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final BookingService _bookingService = BookingService();
-
+  final AuthService _authService = AuthService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
 
@@ -43,12 +44,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
+  
+  Future<void> _logout() async {
+    await _authService.signOut();
+  }
 
  Widget build(BuildContext context) {
   final userId = FirebaseAuth.instance.currentUser!.uid;
 
   return Scaffold(
-    appBar: AppBar(title: const Text('Profile')),
+    appBar: AppBar(
+      title: const Text('Profile'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Logout'),
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirm == true) {
+              await _logout();
+            }
+          },
+        ),
+      ],
+    ),
     body: StreamBuilder<List<Booking>>(
       stream: _bookingService.getActiveBookingsForUserStream(userId),
       builder: (context, snapshot) {
