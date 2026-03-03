@@ -52,16 +52,16 @@ class SessionService {
 
   Future<void> createSession({
     required DateTime startsAt,
+    required DateTime endsAt,
     required int capacity,
   }) async {
-    final endsAt = startsAt.add(const Duration(hours: 1));
     await _db.collection('sessions').add({
       'startsAt': Timestamp.fromDate(startsAt),
       'endsAt': Timestamp.fromDate(endsAt),
       'capacity': capacity,
       'bookedCount': 0,
       'active': true,
-      'createdAt': Timestamp.now(),
+      'createdAt': Timestamp.fromDate(DateTime.now()),
     });
   }
 
