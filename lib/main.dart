@@ -9,6 +9,7 @@ import 'screens/booking/booking_screen.dart';
 import 'screens/admin/admin_session_screen.dart';
 import 'screens/main_shell.dart';
 import 'models/user_model.dart';
+import 'screens/admin/admin_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +75,7 @@ class AuthGate extends StatelessWidget {
             //_notificationService.(appUser.uid);
 
             if (appUser.role == UserRole.admin) {
-              return AdminSessionsScreen();
+              return AdminShell();
             } else {
               return const MainShell();
             }
