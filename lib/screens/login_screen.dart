@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'main_shell.dart';
-import 'admin/admin_session_screen.dart';
+import 'admin/admin_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthService authService;
@@ -47,19 +47,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (appUser.role == UserRole.admin) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => AdminSessionsScreen()),
+          MaterialPageRoute(builder: (_) => const AdminShell()),
         );
       } else {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainShell()),
         );
       }
-
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
       String message;
-
       switch (e.code) {
         case 'user-not-found':
         case 'wrong-password':
@@ -79,81 +77,63 @@ class _LoginScreenState extends State<LoginScreen> {
           .showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Something went wrong.")),
+        const SnackBar(content: Text('Something went wrong.')),
       );
-    }
-
-    if (mounted) {
-      setState(() => _loading = false);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Register')),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!_isLogin) ...[
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _surnameController,
-                  decoration: const InputDecoration(labelText: 'Surname'),
-                ),
-                const SizedBox(height: 12),
-              ],
-
+        child: Column(
+          children: [
+            if (!_isLogin) ...[
               TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'First Name'),
               ),
               const SizedBox(height: 12),
-
               TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
+                controller: _surnameController,
+                decoration: const InputDecoration(labelText: 'Last Name'),
               ),
-              const SizedBox(height: 20),
-
-              ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                child: Text(_isLogin ? 'Login' : 'Register'),
-              ),
-
-              TextButton(
-                onPressed: () {
-                  setState(() => _isLogin = !_isLogin);
-                },
-                child: Text(
-                  _isLogin
-                      ? "Don't have an account? Register"
-                      : "Already have an account? Login",
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 24),
+            if (_loading)
+              const CircularProgressIndicator()
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submit,
+                  child: Text(_isLogin ? 'Login' : 'Register'),
                 ),
               ),
-
-              const SizedBox(height: 20),
-              /*
-              ElevatedButton(
-                onPressed: _loading
-                    ? null
-                    : () async {
-                        await widget.authService.signInWithGoogle();
-                      },
-                child: const Text('Sign in with Google'),
+            TextButton(
+              onPressed: () => setState(() => _isLogin = !_isLogin),
+              child: Text(
+                _isLogin ? 'No account? Register' : 'Have an account? Login',
               ),
-              */
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
