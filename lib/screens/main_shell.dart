@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'home_screen.dart';
+import 'home/home_screen.dart';
 import 'booking/booking_screen.dart';
 import 'notification_screen.dart';
 import 'profile/profile_screen.dart';

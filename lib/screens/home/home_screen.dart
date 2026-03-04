@@ -3,13 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-import '../../models/user_model.dart';
-import '../../models/booking_model.dart';
-import '../../models/session_model.dart';
-import '../../services/booking_service.dart';
-import '../../services/session_service.dart';
-import '../../services/user_service.dart';
-import 'booking/widgets/session_card.dart';
+import '../../../models/user_model.dart';
+import '../../../models/booking_model.dart';
+import '../../../models/session_model.dart';
+import '../../../services/booking_service.dart';
+import '../../../services/session_service.dart';
+import '../../../services/user_service.dart';
+import '../booking/widgets/session_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
