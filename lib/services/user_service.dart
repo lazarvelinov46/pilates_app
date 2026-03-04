@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/package_model.dart';
+import '../models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -26,6 +27,15 @@ class UserService {
         'surname': data['surname'] ?? '',
       };
     }).toList();
+  }
+
+  // ---------------- REAL-TIME USER STREAM ----------------
+  Stream<AppUser> getUserStream(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .map((snap) => AppUser.fromFirestore(snap));
   }
 
   // ---------------- ASSIGN PROMOTION FROM PACKAGE ----------------
