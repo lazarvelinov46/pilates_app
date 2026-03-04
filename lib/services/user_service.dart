@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/package_model.dart';
 import '../models/user_model.dart';
+import '../models/user_preferences_model.dart';
 
 class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -38,23 +39,45 @@ class UserService {
         .map((snap) => AppUser.fromFirestore(snap));
   }
 
+  // ---------------- UPDATE PREFERENCES ----------------
+  Future<void> updatePreferences(
+      String userId, UserPreferences preferences) async {
+    await _db.collection('users').doc(userId).update({
+      'preferences': preferences.toMap(),
+    });
+  }
+
   // ---------------- ASSIGN PROMOTION FROM PACKAGE ----------------
-  // Stores a snapshot of the package at assignment time.
-  // Future edits or deletion of the package do NOT affect this promotion.
+  // Archives the current promotion (if any) to promotionHistory before
+  // assigning the new one. Changes to the original package do NOT affect this.
   Future<void> assignPromotionFromPackage({
     required String userId,
     required Package package,
     required DateTime expiresAt,
   }) async {
-    await _db.collection('users').doc(userId).update({
-      'promotion': {
-        'packageId': package.id,
-        'packageName': package.name,
-        'totalSessions': package.numberOfSessions,
-        'booked': 0,
-        'attended': 0,
-        'expiresAt': Timestamp.fromDate(expiresAt),
-      },
+    final userRef = _db.collection('users').doc(userId);
+
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      final data = snap.data()!;
+
+      final updates = <String, dynamic>{
+        'promotion': {
+          'packageId': package.id,
+          'packageName': package.name,
+          'totalSessions': package.numberOfSessions,
+          'booked': 0,
+          'attended': 0,
+          'expiresAt': Timestamp.fromDate(expiresAt),
+        },
+      };
+
+      // Archive existing promotion to history if present
+      if (data['promotion'] != null) {
+        updates['promotionHistory'] = FieldValue.arrayUnion([data['promotion']]);
+      }
+
+      tx.update(userRef, updates);
     });
   }
 }
