@@ -24,16 +24,17 @@ class BookingService {
       }
 
       final expiresAt = (promo['expiresAt'] as Timestamp).toDate();
-      final total = promo['total'];
-      final booked = promo['booked'];
-      final attended = promo['attended'];
+      // FIX: was promo['total'] — field is actually 'totalSessions'
+      final total = promo['totalSessions'] as int;
+      final booked = promo['booked'] as int;
+      final attended = promo['attended'] as int;
 
       if (DateTime.now().isAfter(expiresAt)) {
         throw Exception('Promotion expired');
       }
 
       if (total - booked - attended <= 0) {
-        throw Exception('No sessions left');
+        throw Exception('No sessions left in your promotion');
       }
 
       final sessionSnap = await tx.get(sessionRef);
@@ -43,14 +44,14 @@ class BookingService {
 
       final sessionData = sessionSnap.data()!;
       if (sessionData['active'] != true) {
-        throw Exception('Session inactive');
+        throw Exception('Session is no longer active');
       }
 
       final int capacity = sessionData['capacity'];
       final int bookedCount = sessionData['bookedCount'];
 
       if (bookedCount >= capacity) {
-        throw Exception('Session full');
+        throw Exception('Session is full');
       }
 
       // Check duplicate booking
@@ -61,7 +62,7 @@ class BookingService {
           .get();
 
       if (existing.docs.isNotEmpty) {
-        throw Exception('Already booked');
+        throw Exception('You already booked this session');
       }
 
       final bookingRef = bookingsRef.doc();
@@ -72,7 +73,7 @@ class BookingService {
         'sessionStartsAt': sessionData['startsAt'],
         'createdAt': Timestamp.now(),
         'status': 'active',
-        'reminderSent': false
+        'reminderSent': false,
       });
 
       tx.update(sessionRef, {
@@ -102,12 +103,12 @@ class BookingService {
 
       final bookingData = bookingSnap.data()!;
       if (bookingData['status'] != 'active') {
-        throw Exception('Already cancelled');
+        throw Exception('Booking is already cancelled');
       }
 
       final sessionSnap = await tx.get(sessionRef);
       if (!sessionSnap.exists) {
-        throw Exception('Session missing');
+        throw Exception('Session not found');
       }
 
       final int bookedCount = sessionSnap['bookedCount'];
@@ -121,7 +122,7 @@ class BookingService {
         'bookedCount': bookedCount > 0 ? bookedCount - 1 : 0,
       });
 
-      // Refund only if allowed
+      // Refund session slot only if cancelled within allowed window (12h before)
       if (booking.canCancel()) {
         tx.update(userRef, {
           'promotion.booked': FieldValue.increment(-1),
@@ -130,17 +131,16 @@ class BookingService {
     });
   }
 
-  
-  Future<Set<String>> getUserActiveBookings(String userId) async {
-  final snap = await _db
-      .collection('bookings')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: 'active')
-      .get();
+  // ---------------- QUERIES ----------------
 
-  return snap.docs
-      .map((d) => d['sessionId'] as String)
-      .toSet();
+  Future<Set<String>> getUserActiveBookings(String userId) async {
+    final snap = await _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .get();
+
+    return snap.docs.map((d) => d['sessionId'] as String).toSet();
   }
 
   Future<List<Booking>> getActiveBookingsForUser(String userId) async {
@@ -148,12 +148,11 @@ class BookingService {
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'active')
-        .orderBy('startsAt')
+        // FIX: was orderBy('startsAt') — field is 'sessionStartsAt'
+        .orderBy('sessionStartsAt')
         .get();
 
-    return snap.docs
-        .map((d) => Booking.fromFirestore(d))
-        .toList();
+    return snap.docs.map((d) => Booking.fromFirestore(d)).toList();
   }
 
   Stream<List<Booking>> getActiveBookingsForUserStream(String userId) {
@@ -161,10 +160,22 @@ class BookingService {
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'active')
-        .orderBy('startsAt')
+        // FIX: was orderBy('startsAt') — field is 'sessionStartsAt'
+        .orderBy('sessionStartsAt')
         .snapshots()
         .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
 
-
+  /// Returns only future bookings (session hasn't started yet)
+  Stream<List<Booking>> getUpcomingBookingsStream(String userId) {
+    final now = Timestamp.fromDate(DateTime.now());
+    return _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .where('sessionStartsAt', isGreaterThan: now)
+        .orderBy('sessionStartsAt')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+  }
 }
