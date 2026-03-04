@@ -18,14 +18,35 @@ class _AdminSessionsBody extends StatefulWidget {
 
 class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
   final SessionService _service = SessionService();
+  final ScrollController _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now();
+  bool _calendarVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final shouldShow = _scrollController.offset < 20;
+      if (shouldShow != _calendarVisible) {
+        setState(() => _calendarVisible = shouldShow);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   List<Session> _sessionsForDate(List<Session> all) {
-    return all.where((s) =>
-      s.startsAt.year == _selectedDate.year &&
-      s.startsAt.month == _selectedDate.month &&
-      s.startsAt.day == _selectedDate.day
-    ).toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    return all
+        .where((s) =>
+            s.startsAt.year == _selectedDate.year &&
+            s.startsAt.month == _selectedDate.month &&
+            s.startsAt.day == _selectedDate.day)
+        .toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
   }
 
   void _showCreateDialog(BuildContext context) {
@@ -42,18 +63,36 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
           content: Form(
             key: formKey,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(controller: capCtrl, decoration: const InputDecoration(labelText: 'Capacity'), keyboardType: TextInputType.number, validator: (v) => int.tryParse(v ?? '') == null ? 'Enter valid number' : null),
+              TextFormField(
+                controller: capCtrl,
+                decoration: const InputDecoration(labelText: 'Capacity'),
+                keyboardType: TextInputType.number,
+                validator: (v) =>
+                    int.tryParse(v ?? '') == null ? 'Enter valid number' : null,
+              ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.access_time),
-                label: Text(startDT == null ? 'Select Start Time' : DateFormat('dd MMM HH:mm').format(startDT!)),
+                label: Text(startDT == null
+                    ? 'Select Start Time'
+                    : DateFormat('dd MMM HH:mm').format(startDT!)),
                 onPressed: () async {
-                  final date = await showDatePicker(context: ctx, initialDate: _selectedDate, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 365)));
+                  final date = await showDatePicker(
+                    context: ctx,
+                    initialDate: _selectedDate,
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
                   if (date == null) return;
-                  final time = await showTimePicker(context: ctx, initialTime: const TimeOfDay(hour: 9, minute: 0));
+                  final time = await showTimePicker(
+                    context: ctx,
+                    initialTime: const TimeOfDay(hour: 9, minute: 0),
+                  );
                   if (time == null) return;
                   setSt(() {
-                    startDT = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                    startDT = DateTime(
+                        date.year, date.month, date.day, time.hour, time.minute);
                     endDT = startDT!.add(const Duration(hours: 1));
                   });
                 },
@@ -62,22 +101,36 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.access_time_filled),
-                  label: Text(endDT == null ? 'Select End Time' : DateFormat('HH:mm').format(endDT!)),
+                  label: Text(endDT == null
+                      ? 'Select End Time'
+                      : DateFormat('HH:mm').format(endDT!)),
                   onPressed: () async {
-                    final time = await showTimePicker(context: ctx, initialTime: TimeOfDay(hour: endDT?.hour ?? startDT!.hour + 1, minute: 0));
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: TimeOfDay(
+                          hour: endDT?.hour ?? startDT!.hour + 1, minute: 0),
+                    );
                     if (time == null) return;
-                    setSt(() => endDT = DateTime(startDT!.year, startDT!.month, startDT!.day, time.hour, time.minute));
+                    setSt(() => endDT = DateTime(startDT!.year,
+                        startDT!.month, startDT!.day, time.hour, time.minute));
                   },
                 ),
               ],
             ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () async {
-                if (!formKey.currentState!.validate() || startDT == null || endDT == null) return;
-                await _service.createSession(startsAt: startDT!, endsAt: endDT!, capacity: int.parse(capCtrl.text));
+                if (!formKey.currentState!.validate() ||
+                    startDT == null ||
+                    endDT == null) return;
+                await _service.createSession(
+                    startsAt: startDT!,
+                    endsAt: endDT!,
+                    capacity: int.parse(capCtrl.text));
                 if (ctx.mounted) Navigator.pop(ctx);
               },
               child: const Text('Create'),
@@ -95,10 +148,15 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Create Default Week Sessions'),
-        content: Text('Creates 8 sessions/day Mon-Fri for week of ${DateFormat('dd MMM yyyy').format(monday)}.\n\nMorning: 09:00–13:00\nEvening: 17:00–21:00\nCapacity: 6'),
+        content: Text(
+            'Creates 8 sessions/day Mon-Fri for week of ${DateFormat('dd MMM yyyy').format(monday)}.\n\nMorning: 09:00–13:00\nEvening: 17:00–21:00\nCapacity: 6'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Create')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Create')),
         ],
       ),
     );
@@ -107,95 +165,191 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
       final day = monday.add(Duration(days: d));
       for (int h = 9; h < 13; h++) {
         final s = DateTime(day.year, day.month, day.day, h);
-        await _service.createSession(startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        await _service.createSession(
+            startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
       }
       for (int h = 17; h < 21; h++) {
         final s = DateTime(day.year, day.month, day.day, h);
-        await _service.createSession(startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        await _service.createSession(
+            startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
       }
     }
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Default week sessions created!')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Default week sessions created!')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('sessions').orderBy('startsAt').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('sessions')
+          .orderBy('startsAt')
+          .snapshots(),
       builder: (context, snapshot) {
-        final allSessions = <Session>[];
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            try { allSessions.add(Session.fromFirestore(doc)); } catch (_) {}
-          }
-        }
-        final liveDates = <DateTime>{};
-        for (final s in allSessions) {
-          if (s.active) liveDates.add(DateTime(s.startsAt.year, s.startsAt.month, s.startsAt.day));
-        }
+        final allSessions = snapshot.hasData
+            ? snapshot.data!.docs
+                .map((d) => Session.fromFirestore(d))
+                .toList()
+            : <Session>[];
+
         final todaysSessions = _sessionsForDate(allSessions);
 
+        final datesWithSessions = allSessions.map((s) {
+          final d = s.startsAt;
+          return DateTime(d.year, d.month, d.day);
+        }).toSet();
+
         return Scaffold(
-          body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(children: [
-                const Text('Sessions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.auto_awesome, size: 16),
-                  label: const Text('Default Week'),
-                  onPressed: () => _createDefaultWeek(context),
-                ),
-              ]),
+          body: Column(children: [
+            // Collapsible calendar
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOut,
+              child: _calendarVisible
+                  ? _AdminCalendar(
+                      selectedDate: _selectedDate,
+                      datesWithSessions: datesWithSessions,
+                      onDateSelected: (date) {
+                        setState(() => _selectedDate = date);
+                        if (_scrollController.hasClients) {
+                          _scrollController.animateTo(0,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOut);
+                        }
+                      },
+                    )
+                  : const SizedBox.shrink(),
             ),
-            _AdminCalendar(
-              selectedDate: _selectedDate,
-              datesWithSessions: liveDates,
-              onDateSelected: (d) => setState(() => _selectedDate = d),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(DateFormat('EEEE, dd MMM yyyy').format(_selectedDate), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            ),
-            if (!snapshot.hasData)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
-            else if (todaysSessions.isEmpty)
-              const Expanded(child: Center(child: Text('No sessions on this day.', style: TextStyle(color: Colors.grey))))
-            else Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                itemCount: todaysSessions.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (_, i) {
-                  final s = todaysSessions[i];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: s.active ? Colors.green.shade100 : Colors.grey.shade200,
-                      child: Text(DateFormat.Hm().format(s.startsAt), style: const TextStyle(fontSize: 11)),
+
+            // Collapsed date bar
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _calendarVisible
+                  ? const SizedBox.shrink()
+                  : GestureDetector(
+                      key: const ValueKey('admin-date-chip'),
+                      onTap: () {
+                        if (_scrollController.hasClients) {
+                          _scrollController.animateTo(0,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOut);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              DateFormat('EEEE, dd MMMM yyyy')
+                                  .format(_selectedDate),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.expand_more, size: 16),
+                          ],
+                        ),
+                      ),
                     ),
-                    title: Text('${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
-                    subtitle: Text('Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
-                    trailing: s.active
-                        ? IconButton(icon: const Icon(Icons.block, color: Colors.red), tooltip: 'Deactivate', onPressed: () => _service.deactivateSession(s.id))
-                        : const Chip(label: Text('Inactive'), backgroundColor: Colors.black12),
-                  );
-                },
+            ),
+
+            // Action bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Row(
+                children: [
+                  Text(
+                    '${todaysSessions.length} session${todaysSessions.length == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text('Default week'),
+                    onPressed: () => _createDefaultWeek(context),
+                  ),
+                ],
               ),
             ),
+
+            const Divider(height: 1),
+
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                allSessions.isEmpty)
+              const Expanded(
+                  child: Center(child: CircularProgressIndicator()))
+            else if (todaysSessions.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text('No sessions on this date',
+                      style: TextStyle(color: Colors.grey)),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.separated(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                  itemCount: todaysSessions.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final s = todaysSessions[i];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: s.active
+                            ? Colors.green.shade100
+                            : Colors.grey.shade200,
+                        child: Text(DateFormat.Hm().format(s.startsAt),
+                            style: const TextStyle(fontSize: 11)),
+                      ),
+                      title: Text(
+                          '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
+                      subtitle:
+                          Text('Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
+                      trailing: s.active
+                          ? IconButton(
+                              icon: const Icon(Icons.block, color: Colors.red),
+                              tooltip: 'Deactivate',
+                              onPressed: () => _service.deactivateSession(s.id))
+                          : const Chip(
+                              label: Text('Inactive'),
+                              backgroundColor: Colors.black12),
+                    );
+                  },
+                ),
+              ),
           ]),
-          floatingActionButton: FloatingActionButton(onPressed: () => _showCreateDialog(context), child: const Icon(Icons.add)),
+          floatingActionButton: FloatingActionButton(
+              onPressed: () => _showCreateDialog(context),
+              child: const Icon(Icons.add)),
         );
       },
     );
   }
 }
 
+// ─── Custom inline calendar widget ───────────────────────────────────────────
+
 class _AdminCalendar extends StatefulWidget {
   final DateTime selectedDate;
   final Set<DateTime> datesWithSessions;
   final ValueChanged<DateTime> onDateSelected;
-  const _AdminCalendar({required this.selectedDate, required this.datesWithSessions, required this.onDateSelected});
+
+  const _AdminCalendar({
+    required this.selectedDate,
+    required this.datesWithSessions,
+    required this.onDateSelected,
+  });
+
   @override
   State<_AdminCalendar> createState() => _AdminCalendarState();
 }
@@ -206,13 +360,16 @@ class _AdminCalendarState extends State<_AdminCalendar> {
   @override
   void initState() {
     super.initState();
-    _displayMonth = DateTime(widget.selectedDate.year, widget.selectedDate.month);
+    _displayMonth =
+        DateTime(widget.selectedDate.year, widget.selectedDate.month);
   }
 
   @override
   Widget build(BuildContext context) {
-    final daysInMonth = DateUtils.getDaysInMonth(_displayMonth.year, _displayMonth.month);
-    final firstWeekday = DateTime(_displayMonth.year, _displayMonth.month, 1).weekday;
+    final daysInMonth =
+        DateUtils.getDaysInMonth(_displayMonth.year, _displayMonth.month);
+    final firstWeekday =
+        DateTime(_displayMonth.year, _displayMonth.month, 1).weekday;
     final cells = <Widget>[];
     for (int i = 1; i < firstWeekday; i++) cells.add(const SizedBox());
     for (int day = 1; day <= daysInMonth; day++) {
@@ -225,35 +382,83 @@ class _AdminCalendarState extends State<_AdminCalendar> {
         child: Container(
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor : isToday ? Theme.of(context).primaryColor.withOpacity(0.15) : null,
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected
+                ? Theme.of(context).primaryColor
+                : isToday
+                    ? Theme.of(context).primaryColor.withOpacity(0.15)
+                    : null,
+            shape: BoxShape.circle,
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('$day', style: TextStyle(
-              color: isSelected ? Colors.white : hasSessions ? Colors.black87 : Colors.grey.shade400,
-              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13,
-            )),
-            if (hasSessions) Container(width: 5, height: 5, decoration: BoxDecoration(color: isSelected ? Colors.white70 : Colors.green, shape: BoxShape.circle)),
+          child: Stack(alignment: Alignment.center, children: [
+            Text(
+              '$day',
+              style: TextStyle(
+                fontWeight:
+                    isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : null,
+                fontSize: 13,
+              ),
+            ),
+            if (hasSessions && !isSelected)
+              Positioned(
+                bottom: 2,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
           ]),
         ),
       ));
     }
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => setState(() => _displayMonth = DateTime(_displayMonth.year, _displayMonth.month - 1))),
-        Text(DateFormat('MMMM yyyy').format(_displayMonth), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => setState(() => _displayMonth = DateTime(_displayMonth.year, _displayMonth.month + 1))),
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Column(children: [
+        // Month navigation
+        Row(children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => setState(() => _displayMonth =
+                DateTime(_displayMonth.year, _displayMonth.month - 1)),
+          ),
+          Expanded(
+            child: Text(
+              DateFormat('MMMM yyyy').format(_displayMonth),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => setState(() => _displayMonth =
+                DateTime(_displayMonth.year, _displayMonth.month + 1)),
+          ),
+        ]),
+        // Day labels
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+              .map((d) => Center(
+                  child: Text(d,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.grey))))
+              .toList(),
+        ),
+        // Day cells
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cells,
+        ),
       ]),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: GridView.count(crossAxisCount: 7, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          children: ['M','T','W','T','F','S','S'].map((d) => Center(child: Text(d, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)))).toList()),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: GridView.count(crossAxisCount: 7, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), childAspectRatio: 1.1, children: cells),
-      ),
-    ]);
+    );
   }
 }
