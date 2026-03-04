@@ -24,9 +24,9 @@ class SessionService {
         .get();
 
     return snap.docs
-      .where((d) => d.data()['startsAt'] != null)
-      .map((d) => Session.fromFirestore(d))
-      .toList();
+        .where((d) => d.data()['startsAt'] != null)
+        .map((d) => Session.fromFirestore(d))
+        .toList();
   }
 
   /// Get all sessions in a date range (for calendar dots)
@@ -48,6 +48,29 @@ class SessionService {
         .get();
 
     return snap.docs.map(Session.fromFirestore).toList();
+  }
+
+  /// Get the next [limit] upcoming sessions that aren't full.
+  /// Used for the quick-booking section on the Home screen.
+  Future<List<Session>> getUpcomingSessions({int limit = 3}) async {
+    final now = DateTime.now();
+
+    final snap = await _db
+        .collection('sessions')
+        .where('active', isEqualTo: true)
+        .where('startsAt', isGreaterThan: Timestamp.fromDate(now))
+        .orderBy('startsAt')
+        .limit(limit * 3) // fetch more so we can filter full sessions client-side
+        .get();
+
+    final sessions = snap.docs
+        .where((d) => d.data()['startsAt'] != null)
+        .map((d) => Session.fromFirestore(d))
+        .where((s) => s.bookedCount < s.capacity)
+        .take(limit)
+        .toList();
+
+    return sessions;
   }
 
   Future<void> createSession({
@@ -88,18 +111,14 @@ class SessionService {
 
     final snap = await FirebaseFirestore.instance
         .collection('sessions')
-        .where('startsAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(now))
-        .where('startsAt',
-            isLessThan: Timestamp.fromDate(end))
+        .where('startsAt', isGreaterThanOrEqualTo: Timestamp.fromDate(now))
+        .where('startsAt', isLessThan: Timestamp.fromDate(end))
         .where('active', isEqualTo: true)
         .get();
 
     return snap.docs.map((doc) {
-      final date =
-          (doc['startsAt'] as Timestamp).toDate();
+      final date = (doc['startsAt'] as Timestamp).toDate();
       return DateTime(date.year, date.month, date.day);
     }).toSet();
   }
-
 }
