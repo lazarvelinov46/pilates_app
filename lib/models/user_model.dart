@@ -13,6 +13,7 @@ class AppUser {
   final DateTime createdAt;
 
   final Promotion? promotion;
+  final List<Promotion> promotionHistory;
   final UserPreferences preferences;
 
   AppUser({
@@ -23,11 +24,14 @@ class AppUser {
     required this.email,
     required this.createdAt,
     this.promotion,
+    this.promotionHistory = const [],
     required this.preferences,
   });
 
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    final historyRaw = data['promotionHistory'] as List<dynamic>? ?? [];
 
     return AppUser(
       uid: doc.id,
@@ -37,8 +41,11 @@ class AppUser {
       email: data['email'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       promotion: data['promotion'] != null
-          ? Promotion.fromMap(data['promotion'])
+          ? Promotion.fromMap(data['promotion'] as Map<String, dynamic>)
           : null,
+      promotionHistory: historyRaw
+          .map((e) => Promotion.fromMap(e as Map<String, dynamic>))
+          .toList(),
       preferences: UserPreferences.fromMap(data['preferences'] ?? {}),
     );
   }
@@ -51,6 +58,7 @@ class AppUser {
       'email': email,
       'createdAt': Timestamp.fromDate(createdAt),
       'promotion': promotion?.toMap(),
+      'promotionHistory': promotionHistory.map((p) => p.toMap()).toList(),
       'preferences': preferences.toMap(),
     };
   }
