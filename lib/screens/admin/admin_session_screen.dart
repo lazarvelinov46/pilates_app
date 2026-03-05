@@ -180,6 +180,86 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
     }
   }
 
+  /// Shows a confirmation dialog before deactivating a session.
+  /// Clearly states that booked users will be notified and credited.
+  Future<void> _confirmDeactivate(BuildContext context, Session session) async {
+    final bookedCount = session.bookedCount;
+    final hasBookings = bookedCount > 0;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Cancel Session?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Session on ${DateFormat('dd MMM • HH:mm').format(session.startsAt)}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            if (hasBookings) ...[
+              // Warn admin clearly — this action affects real users.
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.orange.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$bookedCount user${bookedCount == 1 ? '' : 's'} '
+                        'will be notified and their session credit will be '
+                        'automatically refunded.',
+                        style: TextStyle(
+                            color: Colors.orange.shade800, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            const Text('This action cannot be undone.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep Session')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel Session',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    await _service.deactivateSession(session.id);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(hasBookings
+              ? 'Session cancelled. ${session.bookedCount} user${session.bookedCount == 1 ? '' : 's'} will be notified.'
+              : 'Session cancelled.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -313,13 +393,15 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                       ),
                       title: Text(
                           '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
-                      subtitle:
-                          Text('Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
+                      subtitle: Text(
+                          'Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
                       trailing: s.active
                           ? IconButton(
                               icon: const Icon(Icons.block, color: Colors.red),
-                              tooltip: 'Deactivate',
-                              onPressed: () => _service.deactivateSession(s.id))
+                              tooltip: 'Cancel session',
+                              // ← now goes through the confirm dialog
+                              onPressed: () =>
+                                  _confirmDeactivate(context, s))
                           : const Chip(
                               label: Text('Inactive'),
                               backgroundColor: Colors.black12),
@@ -419,7 +501,6 @@ class _AdminCalendarState extends State<_AdminCalendar> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Column(children: [
-        // Month navigation
         Row(children: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
@@ -439,7 +520,6 @@ class _AdminCalendarState extends State<_AdminCalendar> {
                 DateTime(_displayMonth.year, _displayMonth.month + 1)),
           ),
         ]),
-        // Day labels
         GridView.count(
           crossAxisCount: 7,
           shrinkWrap: true,
@@ -451,7 +531,6 @@ class _AdminCalendarState extends State<_AdminCalendar> {
                           fontSize: 11, color: Colors.grey))))
               .toList(),
         ),
-        // Day cells
         GridView.count(
           crossAxisCount: 7,
           shrinkWrap: true,
