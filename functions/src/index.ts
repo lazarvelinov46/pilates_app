@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import {onDocumentUpdated} from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
@@ -31,7 +31,9 @@ export const onSessionCancelled = onDocumentUpdated(
     const sessionDate = sessionTime.toDate();
 
     const pad = (n: number) => String(n).padStart(2, "0");
-    const formattedTime = `${pad(sessionDate.getDate())} ${sessionDate.toLocaleString("en", { month: "short" })} • ${pad(sessionDate.getHours())}:${pad(sessionDate.getMinutes())}`;
+    const formattedTime = `${pad(sessionDate.getDate())} 
+    ${sessionDate.toLocaleString("en", {month: "short"})} • 
+    ${pad(sessionDate.getHours())}:${pad(sessionDate.getMinutes())}`;
 
     // ── 1. Find all active bookings for this session ──────────────────────
     const bookingsSnap = await db
@@ -93,7 +95,8 @@ export const onSessionCancelled = onDocumentUpdated(
       tokens,
       notification: {
         title: "Session Cancelled",
-        body: `Your session on ${formattedTime} has been cancelled by the studio. Your credit has been refunded.`,
+        body: `Your session on ${formattedTime} has been cancelled
+         by the studio. Your credit has been refunded.`,
       },
       android: {
         notification: {
