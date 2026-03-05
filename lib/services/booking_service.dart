@@ -24,7 +24,6 @@ class BookingService {
       }
 
       final expiresAt = (promo['expiresAt'] as Timestamp).toDate();
-      // FIX: was promo['total'] — field is actually 'totalSessions'
       final total = promo['totalSessions'] as int;
       final booked = promo['booked'] as int;
       final attended = promo['attended'] as int;
@@ -122,7 +121,7 @@ class BookingService {
         'bookedCount': bookedCount > 0 ? bookedCount - 1 : 0,
       });
 
-      // Refund session slot only if cancelled within allowed window (12h before)
+      // Refund session slot only if cancelled within allowed window (12h before).
       if (booking.canCancel()) {
         tx.update(userRef, {
           'promotion.booked': FieldValue.increment(-1),
@@ -133,6 +132,7 @@ class BookingService {
 
   // ---------------- QUERIES ----------------
 
+  /// One-shot fetch — returns session IDs with an active booking.
   Future<Set<String>> getUserActiveBookings(String userId) async {
     final snap = await _db
         .collection('bookings')
@@ -143,12 +143,24 @@ class BookingService {
     return snap.docs.map((d) => d['sessionId'] as String).toSet();
   }
 
+  /// Real-time stream of session IDs that the user has an active booking for.
+  /// The BookingScreen subscribes to this so the UI updates immediately when
+  /// another device or the backend changes a booking's status.
+  Stream<Set<String>> getUserActiveBookingsStream(String userId) {
+    return _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => d['sessionId'] as String).toSet());
+  }
+
   Future<List<Booking>> getActiveBookingsForUser(String userId) async {
     final snap = await _db
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'active')
-        // FIX: was orderBy('startsAt') — field is 'sessionStartsAt'
         .orderBy('sessionStartsAt')
         .get();
 
@@ -160,13 +172,13 @@ class BookingService {
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'active')
-        // FIX: was orderBy('startsAt') — field is 'sessionStartsAt'
         .orderBy('sessionStartsAt')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+        .map((snap) =>
+            snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
 
-  /// Returns only future bookings (session hasn't started yet)
+  /// Returns only future bookings (session hasn't started yet).
   Stream<List<Booking>> getUpcomingBookingsStream(String userId) {
     final now = Timestamp.fromDate(DateTime.now());
     return _db
@@ -176,6 +188,7 @@ class BookingService {
         .where('sessionStartsAt', isGreaterThan: now)
         .orderBy('sessionStartsAt')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+        .map((snap) =>
+            snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
 }
