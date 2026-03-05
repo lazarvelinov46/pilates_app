@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -5,13 +8,21 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 import '../models/session_model.dart';
 
-/// Handles all local push notifications for the app:
-///   • Immediate booking confirmation
-///   • 24-hour session reminder
-///   • 1-hour session reminder
-///   • Cancellation of pending reminders when a session is cancelled
+/// Handles all push notifications for the app:
+///
+///   Local (device-only):
+///     • Immediate booking confirmation
+///     • 24-hour session reminder
+///     • 1-hour session reminder
+///     • Cancellation of pending reminders when user cancels
+///
+///   Remote via FCM (sent by Cloud Functions):
+///     • Session cancelled by admin — received passively, no code needed here
+///
+///   Token management:
+///     • Saves the device FCM token to the user's Firestore doc on init
+///       so the Cloud Function can send remote notifications to this device
 class NotificationService {
-  // Singleton so the plugin is only initialised once.
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -23,11 +34,9 @@ class NotificationService {
 
   // ── Initialisation ────────────────────────────────────────────────────────
 
-  /// Call once at app startup (e.g. in main.dart after Firebase.initializeApp).
   Future<void> init() async {
     if (_initialized) return;
 
-    // Set up timezone data so scheduled notifications fire at the right time.
     tz_data.initializeTimeZones();
     final String localTimezone = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(localTimezone));
@@ -46,21 +55,54 @@ class NotificationService {
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
     );
 
-    // Android 13+ requires explicit runtime permission for notifications.
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
 
+    // Request FCM permission and save the device token to Firestore.
+    // The Cloud Function reads this token to send remote push notifications
+    // when the admin cancels a session.
+    await _initFcmToken();
+
     _initialized = true;
+  }
+
+  // ── FCM token management ──────────────────────────────────────────────────
+
+  Future<void> _initFcmToken() async {
+    final messaging = FirebaseMessaging.instance;
+
+    // Required on iOS; harmless no-op on Android.
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    final token = await messaging.getToken();
+    if (token != null) await _saveToken(token);
+
+    // FCM can rotate tokens — keep Firestore up to date.
+    messaging.onTokenRefresh.listen(_saveToken);
+  }
+
+  Future<void> _saveToken(String token) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .update({'fcmToken': token});
   }
 
   // ── Shared notification channel/details ──────────────────────────────────
 
   NotificationDetails get _details => const NotificationDetails(
         android: AndroidNotificationDetails(
-          'pilates_sessions', // channel id
-          'Pilates Sessions', // channel name
+          'pilates_sessions',
+          'Pilates Sessions',
           channelDescription:
               'Booking confirmations and session reminders',
           importance: Importance.high,
@@ -76,7 +118,7 @@ class NotificationService {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  /// Shows an immediate notification confirming a successful booking.
+  /// Immediate local notification confirming a successful booking.
   Future<void> notifyBookingConfirmed(Session session) async {
     await init();
     final formattedTime =
@@ -90,8 +132,8 @@ class NotificationService {
     );
   }
 
-  /// Schedules a 24-hour and a 1-hour reminder for [session].
-  /// Reminders that are already in the past are silently skipped.
+  /// Schedules a 24h and a 1h local reminder for [session].
+  /// Past reminders are silently skipped.
   Future<void> scheduleSessionReminders(Session session) async {
     await init();
     final sessionTime = DateFormat('HH:mm').format(session.startsAt);
@@ -127,23 +169,21 @@ class NotificationService {
     }
   }
 
-  /// Cancels all pending reminders (24h + 1h) for [sessionId].
-  /// Call this when the user cancels a booking.
+  /// Cancels pending local reminders (24h + 1h) for [sessionId].
+  /// Call this when the user cancels their own booking.
   Future<void> cancelSessionReminders(String sessionId) async {
     await _plugin.cancel(_reminder24hId(sessionId));
     await _plugin.cancel(_reminder1hId(sessionId));
   }
 
   // ── Stable ID helpers ─────────────────────────────────────────────────────
-  // These use a deterministic hash so notification IDs are stable
-  // across app restarts, enabling reliable cancellation of scheduled alerts.
 
   int _stableHash(String s) {
     var hash = 0;
     for (final c in s.codeUnits) {
       hash = (hash * 31 + c) & 0x7FFFFFFF;
     }
-    return hash % 100000; // keep within reasonable int range
+    return hash % 100000;
   }
 
   int _confirmationId(String sessionId) => _stableHash(sessionId);
