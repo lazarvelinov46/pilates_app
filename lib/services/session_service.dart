@@ -4,7 +4,7 @@ import '../models/session_model.dart';
 class SessionService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Get all active sessions for a specific day
+  /// Get all active sessions for a specific day (one-shot fetch).
   Future<List<Session>> getSessionsForDate(DateTime day) async {
     final startOfDay = DateTime(day.year, day.month, day.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -29,7 +29,32 @@ class SessionService {
         .toList();
   }
 
-  /// Get all sessions in a date range (for calendar dots)
+  /// Real-time stream of active sessions for [day].
+  /// Automatically reflects capacity changes as other users book/cancel.
+  Stream<List<Session>> streamSessionsForDate(DateTime day) {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return _db
+        .collection('sessions')
+        .where('active', isEqualTo: true)
+        .where(
+          'startsAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
+        .where(
+          'startsAt',
+          isLessThan: Timestamp.fromDate(endOfDay),
+        )
+        .orderBy('startsAt')
+        .snapshots()
+        .map((snap) => snap.docs
+            .where((d) => d.data()['startsAt'] != null)
+            .map((d) => Session.fromFirestore(d))
+            .toList());
+  }
+
+  /// Get all sessions in a date range (for calendar dots).
   Future<List<Session>> getSessionsInRange(
     DateTime from,
     DateTime to,
