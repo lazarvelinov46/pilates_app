@@ -6,10 +6,14 @@ import 'package:intl/intl.dart';
 import '../../../models/user_model.dart';
 import '../../../models/booking_model.dart';
 import '../../../models/session_model.dart';
+import '../../../models/rating_model.dart';
+import '../../../models/promotion_model.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/session_service.dart';
 import '../../../services/user_service.dart';
+import '../../../services/rating_service.dart';
 import '../booking/widgets/session_card.dart';
+import 'widgets/completed_sessions_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,26 +27,42 @@ class _HomeScreenState extends State<HomeScreen> {
   final UserService _userService = UserService();
   final BookingService _bookingService = BookingService();
   final SessionService _sessionService = SessionService();
+  final RatingService _ratingService = RatingService();
 
   List<Session> _upcomingSessions = [];
   Set<String> _bookedSessionIds = {};
+  List<Booking> _completedBookings = [];
+  Map<String, SessionRating> _ratingsMap = {};
   bool _loadingQuickBook = false;
 
   @override
   void initState() {
     super.initState();
-    _loadQuickBookData();
+    _loadData();
   }
 
-  Future<void> _loadQuickBookData() async {
+  Future<void> _loadData() async {
     setState(() => _loadingQuickBook = true);
-    final sessions = await _sessionService.getUpcomingSessions(limit: 3);
-    final booked = await _bookingService.getUserActiveBookings(userId);
+
+    final results = await Future.wait([
+      _sessionService.getUpcomingSessions(limit: 3),
+      _bookingService.getUserActiveBookings(userId),
+      _bookingService.getCompletedBookingsForUser(userId),
+      _ratingService.getUserRatingsMap(userId),
+    ]);
+
+    if (!mounted) return;
     setState(() {
-      _upcomingSessions = sessions;
-      _bookedSessionIds = booked;
+      _upcomingSessions = results[0] as List<Session>;
+      _bookedSessionIds = results[1] as Set<String>;
+      _completedBookings = results[2] as List<Booking>;
+      _ratingsMap = results[3] as Map<String, SessionRating>;
       _loadingQuickBook = false;
     });
+  }
+
+  void _onRatingSubmitted(SessionRating rating) {
+    setState(() => _ratingsMap[rating.sessionId] = rating);
   }
 
   Future<void> _cancelBooking(Booking booking) async {
@@ -51,7 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel session?'),
         content: Text(
-          'Are you sure you want to cancel your session on ${booking.formattedDateTime}?\n\n'
+          'Are you sure you want to cancel your session on '
+          '${booking.formattedDateTime}?\n\n'
           '${booking.canCancel() ? 'Your session credit will be returned to your promotion.' : 'Note: cancellation is within 12 hours of the session — your credit will NOT be refunded.'}',
         ),
         actions: [
@@ -107,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
-      _loadQuickBookData();
+      _loadData();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,6 +142,32 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ── Open completed sessions sheet ─────────────────────────────────────────
+
+  void _openCompletedSessionsSheet(BuildContext context, AppUser user) {
+    showCompletedSessionsSheet(
+      context: context,
+      completedBookings: _completedBookings,
+      ratingsMap: _ratingsMap,
+      user: user,
+      onRatingSubmitted: _onRatingSubmitted,
+    );
+  }
+
+  // ── Rate from last-session card ───────────────────────────────────────────
+
+  Future<void> _openRateDialogForBooking(
+      BuildContext context, Booking booking, AppUser user) async {
+    final rating = await showRateSessionDialog(
+      context: context,
+      booking: booking,
+      user: user,
+    );
+    if (rating != null) _onRatingSubmitted(rating);
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,7 +180,11 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           final user = userSnap.data;
-          final promotion = user?.promotion;
+          if (user == null) {
+            return const Center(child: Text('Unable to load profile'));
+          }
+
+          final promotion = user.promotion;
 
           return StreamBuilder<List<Booking>>(
             stream: _bookingService.getUpcomingBookingsStream(userId),
@@ -141,24 +192,33 @@ class _HomeScreenState extends State<HomeScreen> {
               final upcomingBookings = bookingSnap.data ?? [];
 
               return RefreshIndicator(
-                onRefresh: _loadQuickBookData,
+                onRefresh: _loadData,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                   children: [
-                    // ── Promotion Card ────────────────────────────────────
-                    _buildPromotionCard(context, promotion),
+                    // ── Promotion / history card ────────────────────────
+                    _buildPromotionSection(context, user),
+
+                    // ── Last completed session ──────────────────────────
+                    if (_completedBookings.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildLastCompletedSessionCard(context, user),
+                    ],
 
                     const SizedBox(height: 24),
 
-                    // ── Upcoming Bookings or Quick-Book ───────────────────
-                    if (promotion == null || promotion.isExpired || promotion.remaining <= 0) ...[
+                    // ── Booking section ─────────────────────────────────
+                    if (promotion == null ||
+                        promotion.isExpired ||
+                        promotion.remaining <= 0) ...[
                       _buildNoPromotionBanner(context, promotion),
                     ] else if (upcomingBookings.isNotEmpty) ...[
                       Text(
                         'Your upcoming sessions',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       ...upcomingBookings
@@ -168,7 +228,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ))
                           .toList(),
                     ] else ...[
-                      // No bookings but has active promo → quick book
                       Row(
                         children: [
                           Text(
@@ -199,10 +258,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                       if (_loadingQuickBook)
                         const Center(
-                            child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(),
-                        ))
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
                       else if (_upcomingSessions.isEmpty)
                         const _EmptySessionsCard()
                       else
@@ -211,6 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   session: s,
                                   alreadyBooked:
                                       _bookedSessionIds.contains(s.id),
+                                  isCancelled: false,
                                   onBook: () => _quickBook(s),
                                 ))
                             .toList(),
@@ -225,28 +286,63 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPromotionCard(BuildContext context, promotion) {
-    if (promotion == null) {
-      return _NoPromotionCard();
+  // ── Promotion section (current or last history) ───────────────────────────
+
+  Widget _buildPromotionSection(BuildContext context, AppUser user) {
+    final promotion = user.promotion;
+    final hasCompleted = _completedBookings.isNotEmpty;
+
+    if (promotion != null) {
+      return _buildPromotionCard(
+        context,
+        promotion,
+        onTap: hasCompleted
+            ? () => _openCompletedSessionsSheet(context, user)
+            : null,
+        isHistory: false,
+      );
     }
 
-    final total = promotion.totalSessions as int;
-    final booked = promotion.booked as int;
-    final attended = promotion.attended as int;
+    if (user.promotionHistory.isNotEmpty) {
+      final lastPromo = user.promotionHistory.last;
+      return _buildPromotionCard(
+        context,
+        lastPromo,
+        onTap: hasCompleted
+            ? () => _openCompletedSessionsSheet(context, user)
+            : null,
+        isHistory: true,
+      );
+    }
+
+    return _NoPromotionCard();
+  }
+
+  Widget _buildPromotionCard(
+    BuildContext context,
+    Promotion promotion, {
+    VoidCallback? onTap,
+    required bool isHistory,
+  }) {
+    final total = promotion.totalSessions;
+    final booked = promotion.booked;
+    final attended = promotion.attended;
     final used = booked + attended;
     final fillPercent = total > 0 ? used / total : 0.0;
 
     final colorScheme = Theme.of(context).colorScheme;
     final isExpired = promotion.isExpired;
     final isExhausted = promotion.remaining <= 0;
+    final isInactive = isExpired || isExhausted || isHistory;
 
-    Color cardColor = isExpired || isExhausted
+    final cardColor = isInactive
         ? Colors.grey.shade200
         : colorScheme.primaryContainer;
 
-    Color barColor = isExpired || isExhausted ? Colors.grey : colorScheme.primary;
+    final barColor =
+        isInactive ? Colors.grey : colorScheme.primary;
 
-    return Container(
+    Widget card = Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -257,6 +353,12 @@ class _HomeScreenState extends State<HomeScreen> {
             offset: const Offset(0, 2),
           ),
         ],
+        border: onTap != null
+            ? Border.all(
+                color: colorScheme.primary.withOpacity(0.4),
+                width: 1.5,
+              )
+            : null,
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -267,26 +369,32 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Text(
                   promotion.packageName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
-              if (isExpired)
+              if (isHistory)
+                _StatusBadge(label: 'Completed', color: Colors.blueGrey)
+              else if (isExpired)
                 _StatusBadge(label: 'Expired', color: Colors.red)
               else if (isExhausted)
                 _StatusBadge(label: 'Used up', color: Colors.orange)
               else
                 _StatusBadge(
-                    label: '${promotion.remaining} left',
-                    color: Colors.green),
+                  label: '${promotion.remaining} left',
+                  color: Colors.green,
+                ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             'Expires ${DateFormat('dd MMM yyyy').format(promotion.expiresAt)}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isExpired ? Colors.red.shade700 : Colors.grey.shade700,
+                  color: (!isHistory && isExpired)
+                      ? Colors.red.shade700
+                      : Colors.grey.shade700,
                 ),
           ),
           const SizedBox(height: 16),
@@ -300,18 +408,158 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            '$used / $total sessions used',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
+          Row(
+            children: [
+              Text(
+                '$used / $total sessions used',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              if (onTap != null) ...[
+                const Spacer(),
+                Text(
+                  'View sessions',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right,
+                    size: 16, color: colorScheme.primary),
+              ],
+            ],
           ),
         ],
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: card);
+    }
+    return card;
   }
 
-  Widget _buildNoPromotionBanner(BuildContext context, promotion) {
+  // ── Last completed session card ───────────────────────────────────────────
+
+  Widget _buildLastCompletedSessionCard(
+      BuildContext context, AppUser user) {
+    final last = _completedBookings.first; // sorted newest-first
+    final existingRating = _ratingsMap[last.sessionId];
+    final isRated = existingRating != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Last session',
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          decoration: BoxDecoration(
+            color: isRated
+                ? Colors.green.shade50
+                : Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isRated
+                  ? Colors.green.shade200
+                  : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isRated
+                      ? Colors.green.shade100
+                      : Theme.of(context)
+                          .colorScheme
+                          .primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.fitness_center,
+                  color: isRated
+                      ? Colors.green.shade700
+                      : Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('EEE, dd MMM yyyy')
+                          .format(last.sessionStartsAt),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    Text(
+                      DateFormat('HH:mm').format(last.sessionStartsAt),
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                    if (isRated) ...[
+                      const SizedBox(height: 4),
+                      StarRow(rating: existingRating.rating, size: 14),
+                    ],
+                  ],
+                ),
+              ),
+              if (isRated)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Rated',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.star_outline, size: 16),
+                  label: const Text('Rate'),
+                  onPressed: () =>
+                      _openRateDialogForBooking(context, last, user),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── No-promotion banner ───────────────────────────────────────────────────
+
+  Widget _buildNoPromotionBanner(
+      BuildContext context, Promotion? promotion) {
     final msg = promotion == null
         ? 'You have no active promotion.'
         : promotion.isExpired
@@ -347,8 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 4),
                 const Text('Contact us to get a new promotion.',
                     textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: Colors.grey, fontSize: 12)),
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
@@ -411,7 +658,9 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-            color: color, fontSize: 12, fontWeight: FontWeight.w600),
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -429,7 +678,8 @@ class _BookingTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
         child: Row(
@@ -437,7 +687,8 @@ class _BookingTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color:
+                    Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -453,7 +704,8 @@ class _BookingTile extends StatelessWidget {
                 children: [
                   Text(
                     booking.formattedDateTime,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style:
+                        const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
