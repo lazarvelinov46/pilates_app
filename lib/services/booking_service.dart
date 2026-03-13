@@ -191,4 +191,19 @@ class BookingService {
         .map((snap) =>
             snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
+
+  /// Past sessions the user attended (active bookings with sessionStartsAt < now).
+  /// Requires a Firestore composite index:
+  ///   Collection: bookings  |  userId ASC, status ASC, sessionStartsAt DESC
+  Future<List<Booking>> getCompletedBookingsForUser(String userId) async {
+    final now = Timestamp.fromDate(DateTime.now());
+    final snap = await _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .where('sessionStartsAt', isLessThan: now)
+        .orderBy('sessionStartsAt', descending: true)
+        .get();
+    return snap.docs.map((d) => Booking.fromFirestore(d)).toList();
+  }
 }
