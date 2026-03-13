@@ -3,6 +3,7 @@ import '../login_screen.dart';
 import '../../services/auth_service.dart';
 import 'admin_packages_screen.dart';
 import 'admin_promotions_screen.dart';
+import 'admin_ratings_screen.dart';
 import 'admin_session_screen.dart';
 
 class AdminShell extends StatefulWidget {
@@ -19,13 +20,15 @@ class _AdminShellState extends State<AdminShell> {
     AdminPackagesScreen(),
     AdminPromotionsScreen(),
     AdminSessionsScreen(),
+    AdminRatingsScreen(),
   ];
 
   Future<void> _logout(BuildContext context) async {
     await AuthService().signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => LoginScreen(authService: AuthService())),
+      MaterialPageRoute(
+          builder: (_) => LoginScreen(authService: AuthService())),
       (_) => false,
     );
   }
@@ -40,7 +43,8 @@ class _AdminShellState extends State<AdminShell> {
           TextButton.icon(
             onPressed: () => _logout(context),
             icon: const Icon(Icons.logout, color: Colors.white),
-            label: const Text('Logout', style: TextStyle(color: Colors.white)),
+            label: const Text('Logout',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -60,6 +64,10 @@ class _AdminShellState extends State<AdminShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month_outlined),
             label: 'Sessions',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star_outline),
+            label: 'Ratings',
           ),
         ],
       ),
