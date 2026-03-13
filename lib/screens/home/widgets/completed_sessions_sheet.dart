@@ -197,7 +197,7 @@ class _SessionHistoryTile extends StatelessWidget {
               ),
               if (isRated) ...[
                 const SizedBox(height: 4),
-                _StarRow(rating: existingRating!.rating, size: 14),
+                StarRow(rating: existingRating!.rating, size: 14),
                 if (existingRating!.comment.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
