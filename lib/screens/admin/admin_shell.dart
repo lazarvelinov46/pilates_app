@@ -35,16 +35,17 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
         automaticallyImplyLeading: false,
         actions: [
-          TextButton.icon(
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
             onPressed: () => _logout(context),
-            icon: const Icon(Icons.logout, color: Colors.white),
-            label: const Text('Logout',
-                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -52,21 +53,29 @@ class _AdminShellState extends State<AdminShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: colorScheme.surface,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: colorScheme.onSurface.withOpacity(0.55),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2_outlined),
+            activeIcon: Icon(Icons.inventory_2),
             label: 'Packages',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.card_giftcard_outlined),
+            activeIcon: Icon(Icons.card_giftcard),
             label: 'Promotions',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month_outlined),
+            activeIcon: Icon(Icons.calendar_month),
             label: 'Sessions',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.star_outline),
+            activeIcon: Icon(Icons.star),
             label: 'Ratings',
           ),
         ],
