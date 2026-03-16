@@ -45,13 +45,13 @@ dependencies:
   #   Android 13+) to AndroidManifest.xml:
   #   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
   # iOS: no extra entitlements needed; permission is requested at runtime.
-  flutter_local_notifications: ^17.2.4
+  #flutter_local_notifications: ^17.2.4
 
   # Timezone support required for zonedSchedule() reminders.
-  timezone: ^0.9.4
+  #timezone: ^0.9.4
 
   # Gets the device's local IANA timezone name (e.g. "Europe/Belgrade").
-  flutter_timezone: ^1.0.4
+  #flutter_timezone: ^1.0.4
 
   cupertino_icons: ^1.0.8
 
