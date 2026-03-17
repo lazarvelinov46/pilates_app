@@ -188,96 +188,104 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return StreamBuilder<List<Booking>>(
             stream: _bookingService.getUpcomingBookingsStream(userId),
-            builder: (context, bookingSnap) {
-              final upcomingBookings = bookingSnap.data ?? [];
+            builder: (context, activeSnap) {
+              return StreamBuilder<List<Booking>>(
+                stream: _bookingService.getAdminCancelledUpcomingStream(userId),
+                builder: (context, cancelledSnap) {
+                  final activeBookings    = activeSnap.data ?? [];
+                  final cancelledBookings = cancelledSnap.data ?? [];
 
-              return RefreshIndicator(
-                onRefresh: _loadData,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                  children: [
-                    // ── Promotion / history card ────────────────────────
-                    _buildPromotionSection(context, user),
+                  // Merge and sort chronologically
+                  final upcomingBookings = [...activeBookings, ...cancelledBookings]
+                    ..sort((a, b) => a.sessionStartsAt.compareTo(b.sessionStartsAt));
 
-                    // ── Last completed session ──────────────────────────
-                    if (_completedBookings.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _buildLastCompletedSessionCard(context, user),
-                    ],
+                  return RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                      children: [
+                        _buildPromotionSection(context, user),
 
-                    const SizedBox(height: 24),
+                        if (_completedBookings.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _buildLastCompletedSessionCard(context, user),
+                        ],
 
-                    // ── Booking section ─────────────────────────────────
-                    if (promotion == null ||
-                        promotion.isExpired ||
-                        promotion.remaining <= 0) ...[
-                      _buildNoPromotionBanner(context, promotion),
-                    ] else if (upcomingBookings.isNotEmpty) ...[
-                      Text(
-                        'Your upcoming sessions',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      ...upcomingBookings
-                          .map((b) => _BookingTile(
-                                booking: b,
-                                onCancel: () => _cancelBooking(b),
-                              ))
-                          .toList(),
-                    ] else ...[
-                      Row(
-                        children: [
+                        const SizedBox(height: 24),
+
+                        if (promotion == null ||
+                            promotion.isExpired ||
+                            promotion.remaining <= 0) ...[
+                          _buildNoPromotionBanner(context, promotion),
+                        ] else if (upcomingBookings.isNotEmpty) ...[
                           Text(
-                            'Quick book',
+                            'Your upcoming sessions',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(width: 8),
-                          Chip(
-                            label: const Text('Upcoming sessions'),
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .primaryContainer,
+                          const SizedBox(height: 12),
+                          ...upcomingBookings
+                              .map((b) => _BookingTile(
+                                    booking: b,
+                                    onCancel: b.status == BookingStatus.active
+                                        ? () => _cancelBooking(b)
+                                        : null,
+                                  ))
+                              .toList(),
+                        ] else ...[
+                          // quick-book section — unchanged
+                          Row(
+                            children: [
+                              Text(
+                                'Quick book',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 8),
+                              Chip(
+                                label: const Text('Upcoming sessions'),
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primaryContainer,
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'You have no sessions booked yet.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_loadingQuickBook)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (_upcomingSessions.isEmpty)
+                            const _EmptySessionsCard()
+                          else
+                            ..._upcomingSessions
+                                .map((s) => SessionCard(
+                                      session: s,
+                                      alreadyBooked: _bookedSessionIds.contains(s.id),
+                                      isCancelled: false,
+                                      onBook: () => _quickBook(s),
+                                    ))
+                                .toList(),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'You have no sessions booked yet.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_loadingQuickBook)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_upcomingSessions.isEmpty)
-                        const _EmptySessionsCard()
-                      else
-                        ..._upcomingSessions
-                            .map((s) => SessionCard(
-                                  session: s,
-                                  alreadyBooked:
-                                      _bookedSessionIds.contains(s.id),
-                                  isCancelled: false,
-                                  onBook: () => _quickBook(s),
-                                ))
-                            .toList(),
-                    ],
-                  ],
-                ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           );
@@ -668,70 +676,80 @@ class _StatusBadge extends StatelessWidget {
 
 class _BookingTile extends StatelessWidget {
   final Booking booking;
-  final VoidCallback onCancel;
+  final VoidCallback? onCancel; // null = not cancellable (locked or admin-cancelled)
 
-  const _BookingTile({required this.booking, required this.onCancel});
+  const _BookingTile({required this.booking, this.onCancel});
 
   @override
   Widget build(BuildContext context) {
+    final isCancelledByAdmin =
+        booking.status == BookingStatus.cancelledByAdmin;
     final canCancel = booking.canCancel();
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color:
-                    Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.fitness_center,
-                color: Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    booking.formattedDateTime,
-                    style:
-                        const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    canCancel
-                        ? 'Cancellable until 12h before'
-                        : 'Cancellation window has passed',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: canCancel
-                          ? Colors.grey.shade600
-                          : Colors.orange.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: canCancel ? onCancel : null,
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-                disabledForegroundColor: Colors.grey,
-              ),
-              child: const Text('Cancel'),
-            ),
-          ],
+      decoration: BoxDecoration(
+        color: isCancelledByAdmin
+            ? Colors.red.shade50
+            : Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCancelledByAdmin
+              ? Colors.red.shade200
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
+      ),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Icon(
+          isCancelledByAdmin
+              ? Icons.cancel_outlined
+              : Icons.fitness_center_rounded,
+          color: isCancelledByAdmin ? Colors.red.shade400 : null,
+        ),
+        title: Text(
+          booking.formattedDateTime,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isCancelledByAdmin ? Colors.red.shade700 : null,
+          ),
+        ),
+        subtitle: Text(
+          isCancelledByAdmin
+              ? 'Cancelled by studio — credit refunded'
+              : canCancel
+                  ? 'Cancel up to 12h before'
+                  : 'Cancellation window passed',
+          style: TextStyle(
+            fontSize: 12,
+            color: isCancelledByAdmin ? Colors.red.shade400 : Colors.grey,
+          ),
+        ),
+        trailing: isCancelledByAdmin
+            ? Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Cancelled',
+                  style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              )
+            : canCancel
+                ? TextButton(
+                    onPressed: onCancel,
+                    child: const Text('Cancel',
+                        style: TextStyle(color: Colors.red)),
+                  )
+                : const Text('Locked',
+                    style: TextStyle(color: Colors.grey, fontSize: 13)),
       ),
     );
   }
