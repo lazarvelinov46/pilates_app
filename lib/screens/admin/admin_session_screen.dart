@@ -395,16 +395,18 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                           '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
                       subtitle: Text(
                           'Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
-                      trailing: s.active
-                          ? IconButton(
-                              icon: const Icon(Icons.block, color: Colors.red),
-                              tooltip: 'Cancel session',
-                              // ← now goes through the confirm dialog
-                              onPressed: () =>
-                                  _confirmDeactivate(context, s))
-                          : const Chip(
+                      trailing: !s.active
+                          ? const Chip(
                               label: Text('Inactive'),
-                              backgroundColor: Colors.black12),
+                              backgroundColor: Colors.black12)
+                          : s.startsAt.isBefore(DateTime.now())
+                              ? const Chip(
+                                  label: Text('Completed'),
+                                  backgroundColor: Colors.black12)
+                              : IconButton(
+                                  icon: const Icon(Icons.block, color: Colors.red),
+                                  tooltip: 'Cancel session',
+                                  onPressed: () => _confirmDeactivate(context, s)),
                     );
                   },
                 ),
