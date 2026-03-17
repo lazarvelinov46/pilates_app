@@ -12,20 +12,17 @@ class SessionService {
     final snap = await _db
         .collection('sessions')
         .where('active', isEqualTo: true)
-        .where(
-          'startsAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
-        .where(
-          'startsAt',
-          isLessThan: Timestamp.fromDate(endOfDay),
-        )
+        .where('startsAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('startsAt', isLessThan: Timestamp.fromDate(endOfDay))
         .orderBy('startsAt')
         .get();
+
+    final now = DateTime.now(); // ← add this
 
     return snap.docs
         .where((d) => d.data()['startsAt'] != null)
         .map((d) => Session.fromFirestore(d))
+        .where((s) => s.startsAt.isAfter(now)) // ← add this
         .toList();
   }
 
@@ -38,20 +35,18 @@ class SessionService {
     return _db
         .collection('sessions')
         .where('active', isEqualTo: true)
-        .where(
-          'startsAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
-        .where(
-          'startsAt',
-          isLessThan: Timestamp.fromDate(endOfDay),
-        )
+        .where('startsAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('startsAt', isLessThan: Timestamp.fromDate(endOfDay))
         .orderBy('startsAt')
         .snapshots()
-        .map((snap) => snap.docs
-            .where((d) => d.data()['startsAt'] != null)
-            .map((d) => Session.fromFirestore(d))
-            .toList());
+        .map((snap) {
+          final now = DateTime.now(); // ← add this
+          return snap.docs
+              .where((d) => d.data()['startsAt'] != null)
+              .map((d) => Session.fromFirestore(d))
+              .where((s) => s.startsAt.isAfter(now)) // ← add this
+              .toList();
+        });
   }
 
   /// Get all sessions in a date range (for calendar dots).
