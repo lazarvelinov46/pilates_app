@@ -206,4 +206,19 @@ class BookingService {
         .get();
     return snap.docs.map((d) => Booking.fromFirestore(d)).toList();
   }
+
+  /// Future bookings the admin cancelled — shown as "Cancelled by Studio" in UI.
+  /// Requires a composite Firestore index:
+  ///   Collection: bookings | userId ASC, status ASC, sessionStartsAt ASC
+  Stream<List<Booking>> getAdminCancelledUpcomingStream(String userId) {
+    final now = Timestamp.fromDate(DateTime.now());
+    return _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'cancelled_by_admin')
+        .where('sessionStartsAt', isGreaterThan: now)
+        .orderBy('sessionStartsAt')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+  }
 }
