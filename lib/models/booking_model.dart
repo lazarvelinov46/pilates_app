@@ -12,6 +12,11 @@ class Booking {
   final BookingStatus status;
   final bool reminderSent;
 
+  /// The `createdAt` of the promotion that was charged for this booking.
+  /// Used to route refunds to the correct promotion on cancellation.
+  /// Null for bookings created before multi-promotion support.
+  final DateTime? promotionCreatedAt;
+
   Booking({
     required this.id,
     required this.userId,
@@ -20,6 +25,7 @@ class Booking {
     required this.createdAt,
     required this.status,
     required this.reminderSent,
+    this.promotionCreatedAt,
   });
 
   String get formattedDateTime {
@@ -54,6 +60,9 @@ class Booking {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       status: status,
       reminderSent: data['reminderSent'] ?? false,
+      promotionCreatedAt: data['promotionCreatedAt'] != null
+          ? (data['promotionCreatedAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -77,6 +86,8 @@ class Booking {
       'createdAt': Timestamp.fromDate(createdAt),
       'status': statusStr,
       'reminderSent': reminderSent,
+      if (promotionCreatedAt != null)
+        'promotionCreatedAt': Timestamp.fromDate(promotionCreatedAt!),
     };
   }
 }
