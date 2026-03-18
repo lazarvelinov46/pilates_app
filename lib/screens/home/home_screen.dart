@@ -293,31 +293,55 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Promotion section (current or last history) ───────────────────────────
+  // ── Promotion section ─────────────────────────────────────────────────────
 
   Widget _buildPromotionSection(BuildContext context, AppUser user) {
-    final promotion = user.promotion;
     final hasCompleted = _completedBookings.isNotEmpty;
 
-    if (promotion != null) {
-      return _buildPromotionCard(
-        context,
-        promotion,
-        onTap: hasCompleted
-            ? () => _openCompletedSessionsSheet(context, user)
-            : null,
-        isHistory: false,
+    // Active = not expired AND has sessions remaining.
+    final activePromos = user.sortedPromotions.where((p) => p.canBook()).toList();
+
+    // Inactive from the promotions array (exhausted or expired), newest first.
+    final inactivePromos = user.sortedPromotions
+        .where((p) => !p.canBook())
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Legacy archived promotions (from promotionHistory field), newest last.
+    final legacyHistory = user.promotionHistory;
+
+    if (activePromos.isNotEmpty) {
+      // Show all active promotions only.
+      return Column(
+        children: activePromos.map((promo) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildPromotionCard(
+              context,
+              promo,
+              onTap: hasCompleted
+                  ? () => _openCompletedSessionsSheet(context, user)
+                  : null,
+              isHistory: false,
+            ),
+          );
+        }).toList(),
       );
     }
 
-    if (user.promotionHistory.isNotEmpty) {
-      final lastPromo = user.promotionHistory.last;
+    // No active promotions — show the single most recent inactive one if any.
+    Promotion? fallback;
+    if (inactivePromos.isNotEmpty) {
+      fallback = inactivePromos.first; // already sorted newest-first
+    } else if (legacyHistory.isNotEmpty) {
+      fallback = legacyHistory.last;
+    }
+
+    if (fallback != null) {
       return _buildPromotionCard(
         context,
-        lastPromo,
-        onTap: hasCompleted
-            ? () => _openCompletedSessionsSheet(context, user)
-            : null,
+        fallback,
+        onTap: null,
         isHistory: true,
       );
     }
@@ -346,8 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ? Colors.grey.shade200
         : colorScheme.primaryContainer;
 
-    final barColor =
-        isInactive ? Colors.grey : colorScheme.primary;
+    final barColor = isInactive ? Colors.grey : colorScheme.primary;
 
     Widget card = Container(
       decoration: BoxDecoration(
@@ -400,17 +423,17 @@ class _HomeScreenState extends State<HomeScreen> {
             'Expires ${DateFormat('dd MMM yyyy').format(promotion.expiresAt)}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: (!isHistory && isExpired)
-                      ? Colors.red.shade700
-                      : Colors.grey.shade700,
+                      ? Colors.red
+                      : Colors.grey.shade600,
                 ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: fillPercent.clamp(0.0, 1.0),
-              minHeight: 10,
-              backgroundColor: Colors.white.withOpacity(0.5),
+              minHeight: 8,
+              backgroundColor: Colors.black12,
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
@@ -419,25 +442,17 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 '$used / $total sessions used',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w500),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              if (onTap != null) ...[
-                const Spacer(),
+              const Spacer(),
+              if (!isInactive)
                 Text(
-                  'View sessions',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  '$attended attended · $booked upcoming',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.grey),
                 ),
-                const SizedBox(width: 2),
-                Icon(Icons.chevron_right,
-                    size: 16, color: colorScheme.primary),
-              ],
             ],
           ),
         ],
@@ -445,8 +460,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: card);
+      card = InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: card,
+      );
     }
+
     return card;
   }
 
@@ -565,13 +585,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── No-promotion banner ───────────────────────────────────────────────────
 
-  Widget _buildNoPromotionBanner(
-      BuildContext context, Promotion? promotion) {
-    final msg = promotion == null
-        ? 'You have no active promotion.'
-        : promotion.isExpired
+  Widget _buildNoPromotionBanner(BuildContext context, AppUser user) {
+    final hasActive = user.hasActivePromotion;
+
+    if (hasActive) return const SizedBox.shrink();
+
+    final msg = user.promotions.isNotEmpty
+        ? user.promotions.any((p) => p.isExpired && p.remaining > 0)
             ? 'Your promotion has expired.'
-            : 'You have used all sessions in your promotion.';
+            : 'You have used all sessions in your promotions.'
+        : 'You have no active promotion.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
