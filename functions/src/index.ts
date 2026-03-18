@@ -1,4 +1,4 @@
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import {onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -14,7 +14,7 @@ export const onSessionCancelled = onDocumentUpdated(
   "sessions/{sessionId}",
   async (event) => {
     const before = event.data?.before?.data();
-    const after  = event.data?.after?.data();
+    const after = event.data?.after?.data();
 
     if (!before || !after) return null;
 
@@ -57,15 +57,15 @@ export const onSessionCancelled = onDocumentUpdated(
 
         // ── Refund to correct promotion ─────────────────────────────────
         const promoCreatedAtTs =
-          bookingData.promotionCreatedAt instanceof admin.firestore.Timestamp
-            ? (bookingData.promotionCreatedAt as admin.firestore.Timestamp)
-            : null;
+          bookingData.promotionCreatedAt instanceof admin.firestore.Timestamp?
+            (bookingData.promotionCreatedAt as admin.firestore.Timestamp):
+            null;
 
         if (Array.isArray(userData.promotions) && promoCreatedAtTs) {
-          // New path: find the exact promotion by createdAt and decrement booked.
+        // New path: find the exact promotion by createdAt and decrement booked.
           const promotions = (
             userData.promotions as Record<string, unknown>[]
-          ).map((p) => ({ ...p }));
+          ).map((p) => ({...p}));
 
           const targetMs = promoCreatedAtTs.toMillis();
           const idx = promotions.findIndex(
@@ -77,7 +77,7 @@ export const onSessionCancelled = onDocumentUpdated(
           if (idx !== -1) {
             const current = (promotions[idx].booked as number) ?? 0;
             promotions[idx].booked = Math.max(0, current - 1);
-            tx.update(userRef, { promotions });
+            tx.update(userRef, {promotions});
           }
           // If promotion not found by createdAt, booking is still cancelled —
           // the credit is effectively left intact wherever it was.
@@ -93,9 +93,9 @@ export const onSessionCancelled = onDocumentUpdated(
     await Promise.all(refundPromises);
 
     // ── FCM: notify each affected user ────────────────────────────────────
-    const sessionDate: Date = after.startsAt?.toDate
-      ? after.startsAt.toDate()
-      : new Date();
+    const sessionDate: Date = after.startsAt?.toDate?
+      after.startsAt.toDate():
+      new Date();
 
     const formattedDate = sessionDate.toLocaleDateString("en-GB", {
       weekday: "short",
@@ -110,7 +110,7 @@ export const onSessionCancelled = onDocumentUpdated(
     const messaging = admin.messaging();
 
     const fcmPromises = docs.map(async (bookingDoc) => {
-      const { userId } = bookingDoc.data() as { userId: string };
+      const {userId} = bookingDoc.data() as { userId: string };
       const userSnap = await db.collection("users").doc(userId).get();
       const fcmToken: string | undefined = userSnap.data()?.fcmToken;
       if (!fcmToken) return;
@@ -122,10 +122,10 @@ export const onSessionCancelled = onDocumentUpdated(
             title: "Session Cancelled",
             body:
               `Your session on ${formattedDate} at ${formattedTime} has been ` +
-              `cancelled by the studio. Your credit has been refunded.`,
+              "cancelled by the studio. Your credit has been refunded.",
           },
-          android: { priority: "high" },
-          apns: { payload: { aps: { sound: "default" } } },
+          android: {priority: "high"},
+          apns: {payload: {aps: {sound: "default"}}},
         });
       } catch (err) {
         console.error(`FCM send failed for user ${userId}:`, err);
@@ -135,7 +135,8 @@ export const onSessionCancelled = onDocumentUpdated(
     await Promise.all(fcmPromises);
 
     console.log(
-      `onSessionCancelled: cancelled ${docs.length} booking(s) for session ${sessionId}`
+      `onSessionCancelled: cancelled ${docs.length}
+       booking(s) for session ${sessionId}`
     );
 
     return null;

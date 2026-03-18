@@ -38,7 +38,6 @@ class AuthService {
       surname: surname,
       email: email,
       createdAt: DateTime.now(),
-      promotion: null,
       preferences: UserPreferences.defaultPreferences(),
     );
 
@@ -104,7 +103,6 @@ class AuthService {
         surname: '',
         email: user.email ?? '',
         createdAt: DateTime.now(),
-        promotion: null,
         preferences: UserPreferences.defaultPreferences(),
       );
 

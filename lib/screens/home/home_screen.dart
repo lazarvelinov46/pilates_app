@@ -183,9 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
           if (user == null) {
             return const Center(child: Text('Unable to load profile'));
           }
-
-          final promotion = user.promotion;
-
           return StreamBuilder<List<Booking>>(
             stream: _bookingService.getUpcomingBookingsStream(userId),
             builder: (context, activeSnap) {
@@ -231,8 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ))
                               .toList(),
                           
-                        ] else if (promotion == null || promotion.isExpired || promotion.remaining <= 0) ...[
-                          _buildNoPromotionBanner(context, promotion),
+                        ] else if (!user.hasActivePromotion) ...[
+                          _buildNoPromotionBanner(context, user),
                         ] else ...[
                           // quick-book section — unchanged
                           Row(
