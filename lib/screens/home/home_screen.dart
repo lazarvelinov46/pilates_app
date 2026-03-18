@@ -213,11 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 24),
 
-                        if (promotion == null ||
-                            promotion.isExpired ||
-                            promotion.remaining <= 0) ...[
-                          _buildNoPromotionBanner(context, promotion),
-                        ] else if (upcomingBookings.isNotEmpty) ...[
+                        if (upcomingBookings.isNotEmpty) ...[
                           Text(
                             'Your upcoming sessions',
                             style: Theme.of(context)
@@ -234,6 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         : null,
                                   ))
                               .toList(),
+                          
+                        ] else if (promotion == null || promotion.isExpired || promotion.remaining <= 0) ...[
+                          _buildNoPromotionBanner(context, promotion),
                         ] else ...[
                           // quick-book section — unchanged
                           Row(
