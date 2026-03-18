@@ -8,7 +8,7 @@ const db = admin.firestore();
 // Triggered whenever a session document is updated.
 // When active flips true → false (admin cancels), this:
 //   1. Marks every active booking as 'cancelled_by_admin'
-//   2. Refunds the credit (promotion.booked -= 1) — always, no 12h restriction
+//   2. Refunds the credit to the correct promotion — always, no 12h restriction
 //   3. Sends an FCM push to each affected user
 export const onSessionCancelled = onDocumentUpdated(
   "sessions/{sessionId}",
@@ -31,33 +31,66 @@ export const onSessionCancelled = onDocumentUpdated(
 
     if (bookingsSnap.empty) return null;
 
-    // ── Batch: cancel bookings + refund credits ───────────────────────────
-    // Firestore hard limit is 500 writes per batch; keep chunks safe at 200.
-    const CHUNK = 200;
     const docs = bookingsSnap.docs;
 
-    for (let i = 0; i < docs.length; i += CHUNK) {
-      const batch = db.batch();
-      const chunk = docs.slice(i, i + CHUNK);
+    // ── Cancel bookings + refund credits ─────────────────────────────────
+    // Each booking gets its own transaction so one bad user doc can't block
+    // the rest. Firestore transactions support reads + writes together,
+    // which we need to safely update the promotions array.
+    const refundPromises = docs.map(async (bookingDoc) => {
+      const bookingData = bookingDoc.data() as Record<string, unknown>;
+      const userId = bookingData.userId as string;
+      const userRef = db.collection("users").doc(userId);
 
-      for (const bookingDoc of chunk) {
-        const { userId } = bookingDoc.data() as { userId: string };
+      await db.runTransaction(async (tx) => {
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists) return;
 
-        // Mark booking as admin-cancelled (different from user self-cancel)
-        batch.update(bookingDoc.ref, {
+        const userData = userSnap.data() as Record<string, unknown>;
+
+        // Mark booking as cancelled by admin
+        tx.update(bookingDoc.ref, {
           status: "cancelled_by_admin",
           cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
           cancelledByAdmin: true,
         });
 
-        // Always refund the credit — admin cancellations have no time restriction
-        batch.update(db.collection("users").doc(userId), {
-          "promotion.booked": admin.firestore.FieldValue.increment(-1),
-        });
-      }
+        // ── Refund to correct promotion ─────────────────────────────────
+        const promoCreatedAtTs =
+          bookingData.promotionCreatedAt instanceof admin.firestore.Timestamp
+            ? (bookingData.promotionCreatedAt as admin.firestore.Timestamp)
+            : null;
 
-      await batch.commit();
-    }
+        if (Array.isArray(userData.promotions) && promoCreatedAtTs) {
+          // New path: find the exact promotion by createdAt and decrement booked.
+          const promotions = (
+            userData.promotions as Record<string, unknown>[]
+          ).map((p) => ({ ...p }));
+
+          const targetMs = promoCreatedAtTs.toMillis();
+          const idx = promotions.findIndex(
+            (p) =>
+              p.createdAt instanceof admin.firestore.Timestamp &&
+              (p.createdAt as admin.firestore.Timestamp).toMillis() === targetMs
+          );
+
+          if (idx !== -1) {
+            const current = (promotions[idx].booked as number) ?? 0;
+            promotions[idx].booked = Math.max(0, current - 1);
+            tx.update(userRef, { promotions });
+          }
+          // If promotion not found by createdAt, booking is still cancelled —
+          // the credit is effectively left intact wherever it was.
+        } else if (userData.promotion) {
+          // Legacy path: single `promotion` field.
+          tx.update(userRef, {
+            "promotion.booked": admin.firestore.FieldValue.increment(-1),
+          });
+        }
+      });
+    });
+
+    await Promise.all(refundPromises);
 
     // ── FCM: notify each affected user ────────────────────────────────────
     const sessionDate: Date = after.startsAt?.toDate
@@ -76,11 +109,11 @@ export const onSessionCancelled = onDocumentUpdated(
 
     const messaging = admin.messaging();
 
-    for (const bookingDoc of docs) {
+    const fcmPromises = docs.map(async (bookingDoc) => {
       const { userId } = bookingDoc.data() as { userId: string };
       const userSnap = await db.collection("users").doc(userId).get();
       const fcmToken: string | undefined = userSnap.data()?.fcmToken;
-      if (!fcmToken) continue;
+      if (!fcmToken) return;
 
       try {
         await messaging.send({
@@ -97,7 +130,13 @@ export const onSessionCancelled = onDocumentUpdated(
       } catch (err) {
         console.error(`FCM send failed for user ${userId}:`, err);
       }
-    }
+    });
+
+    await Promise.all(fcmPromises);
+
+    console.log(
+      `onSessionCancelled: cancelled ${docs.length} booking(s) for session ${sessionId}`
+    );
 
     return null;
   }
