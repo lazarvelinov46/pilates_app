@@ -48,33 +48,47 @@ class UserService {
   }
 
   // ---------------- ASSIGN PROMOTION FROM PACKAGE ----------------
-  // Archives the current promotion (if any) to promotionHistory before
-  // assigning the new one. Changes to the original package do NOT affect this.
+  // Appends a new promotion to the user's `promotions` array.
+  // Multiple active promotions are allowed; bookings always consume
+  // the oldest one first.
+  // Also handles one-time migration of legacy single `promotion` field.
   Future<void> assignPromotionFromPackage({
     required String userId,
     required Package package,
     required DateTime expiresAt,
   }) async {
     final userRef = _db.collection('users').doc(userId);
+    final now = DateTime.now();
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(userRef);
       final data = snap.data()!;
 
-      final updates = <String, dynamic>{
-        'promotion': {
-          'packageId': package.id,
-          'packageName': package.name,
-          'totalSessions': package.numberOfSessions,
-          'booked': 0,
-          'attended': 0,
-          'expiresAt': Timestamp.fromDate(expiresAt),
-        },
+      final newPromo = {
+        'packageId': package.id,
+        'packageName': package.name,
+        'totalSessions': package.numberOfSessions,
+        'booked': 0,
+        'attended': 0,
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'createdAt': Timestamp.fromDate(now),
       };
 
-      // Archive existing promotion to history if present
+      // Build the updated promotions array, migrating the legacy field if present.
+      List<dynamic> existing = [];
+      if (data['promotions'] != null) {
+        existing = List<dynamic>.from(data['promotions'] as List);
+      } else if (data['promotion'] != null) {
+        // One-time migration: carry the old single promotion forward.
+        existing = [data['promotion']];
+      }
+      existing.add(newPromo);
+
+      final updates = <String, dynamic>{'promotions': existing};
+
+      // Clean up the legacy field if it still exists.
       if (data['promotion'] != null) {
-        updates['promotionHistory'] = FieldValue.arrayUnion([data['promotion']]);
+        updates['promotion'] = FieldValue.delete();
       }
 
       tx.update(userRef, updates);
