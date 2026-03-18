@@ -11,6 +11,10 @@ class Promotion {
   final int booked;
   final DateTime expiresAt;
 
+  /// Unique identifier for this promotion within the user's promotions array.
+  /// Used to route booking charges and refunds to the correct entry.
+  final DateTime createdAt;
+
   Promotion({
     required this.packageId,
     required this.packageName,
@@ -18,6 +22,7 @@ class Promotion {
     required this.attended,
     required this.booked,
     required this.expiresAt,
+    required this.createdAt,
   });
 
   int get remaining => totalSessions - attended - booked;
@@ -34,6 +39,10 @@ class Promotion {
       attended: map['attended'] ?? 0,
       booked: map['booked'] ?? 0,
       expiresAt: (map['expiresAt'] as Timestamp).toDate(),
+      // Fallback for legacy promotions that pre-date multi-promotion support.
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] as Timestamp).toDate()
+          : DateTime(2000),
     );
   }
 
@@ -45,6 +54,7 @@ class Promotion {
       'attended': attended,
       'booked': booked,
       'expiresAt': Timestamp.fromDate(expiresAt),
+      'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 }
