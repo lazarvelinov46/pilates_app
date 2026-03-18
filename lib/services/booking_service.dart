@@ -5,6 +5,8 @@ class BookingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ---------------- BOOK SESSION ----------------
+  // Charges the oldest bookable promotion (earliest createdAt).
+  // Stores `promotionCreatedAt` on the booking for precise refund routing.
 
   Future<void> bookSession({
     required String userId,
@@ -18,24 +20,53 @@ class BookingService {
       final userSnap = await tx.get(userRef);
       final userData = userSnap.data()!;
 
-      final promo = userData['promotion'];
-      if (promo == null) {
+      // ── Load promotions (supports both new array and legacy single field) ──
+      List<Map<String, dynamic>> promosRaw = [];
+      if (userData['promotions'] != null) {
+        promosRaw = (userData['promotions'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      } else if (userData['promotion'] != null) {
+        promosRaw = [
+          Map<String, dynamic>.from(userData['promotion'] as Map)
+        ];
+      }
+
+      if (promosRaw.isEmpty) {
         throw Exception('No active promotion');
       }
 
-      final expiresAt = (promo['expiresAt'] as Timestamp).toDate();
-      final total = promo['totalSessions'] as int;
-      final booked = promo['booked'] as int;
-      final attended = promo['attended'] as int;
+      // Sort oldest-first by createdAt (legacy entries without createdAt go first).
+      promosRaw.sort((a, b) {
+        final aMs = a['createdAt'] != null
+            ? (a['createdAt'] as Timestamp).millisecondsSinceEpoch
+            : 0;
+        final bMs = b['createdAt'] != null
+            ? (b['createdAt'] as Timestamp).millisecondsSinceEpoch
+            : 0;
+        return aMs.compareTo(bMs);
+      });
 
-      if (DateTime.now().isAfter(expiresAt)) {
-        throw Exception('Promotion expired');
+      // Find the first promotion that is not expired and has sessions left.
+      int? targetIdx;
+      for (int i = 0; i < promosRaw.length; i++) {
+        final p = promosRaw[i];
+        final expiresAt = (p['expiresAt'] as Timestamp).toDate();
+        final total = p['totalSessions'] as int;
+        final booked = p['booked'] as int;
+        final attended = p['attended'] as int;
+        if (!DateTime.now().isAfter(expiresAt) &&
+            total - booked - attended > 0) {
+          targetIdx = i;
+          break;
+        }
       }
 
-      if (total - booked - attended <= 0) {
+      if (targetIdx == null) {
         throw Exception('No sessions left in your promotion');
       }
 
+      // ── Session validation ──
       final sessionSnap = await tx.get(sessionRef);
       if (!sessionSnap.exists) {
         throw Exception('Session does not exist');
@@ -53,7 +84,7 @@ class BookingService {
         throw Exception('Session is full');
       }
 
-      // Check duplicate booking
+      // Check duplicate booking.
       final existing = await bookingsRef
           .where('userId', isEqualTo: userId)
           .where('sessionId', isEqualTo: sessionId)
@@ -64,6 +95,14 @@ class BookingService {
         throw Exception('You already booked this session');
       }
 
+      // ── Charge the target promotion ──
+      final targetPromo = promosRaw[targetIdx];
+      final promoCreatedAt = targetPromo['createdAt'] as Timestamp?;
+
+      promosRaw[targetIdx] = Map<String, dynamic>.from(targetPromo)
+        ..['booked'] = (targetPromo['booked'] as int) + 1;
+
+      // ── Write all changes ──
       final bookingRef = bookingsRef.doc();
 
       tx.set(bookingRef, {
@@ -73,19 +112,25 @@ class BookingService {
         'createdAt': Timestamp.now(),
         'status': 'active',
         'reminderSent': false,
+        if (promoCreatedAt != null) 'promotionCreatedAt': promoCreatedAt,
       });
 
       tx.update(sessionRef, {
         'bookedCount': bookedCount + 1,
       });
 
-      tx.update(userRef, {
-        'promotion.booked': FieldValue.increment(1),
-      });
+      final userUpdates = <String, dynamic>{'promotions': promosRaw};
+      // Clean up legacy field if still present.
+      if (userData['promotion'] != null) {
+        userUpdates['promotion'] = FieldValue.delete();
+      }
+      tx.update(userRef, userUpdates);
     });
   }
 
   // ---------------- CANCEL BOOKING ----------------
+  // Refunds the credit to the exact promotion that was originally charged,
+  // identified by `booking.promotionCreatedAt`.
 
   Future<void> cancelBooking({
     required Booking booking,
@@ -121,11 +166,43 @@ class BookingService {
         'bookedCount': bookedCount > 0 ? bookedCount - 1 : 0,
       });
 
-      // Refund session slot only if cancelled within allowed window (12h before).
+      // Refund session slot only if cancelled within the allowed window (12h).
       if (booking.canCancel()) {
-        tx.update(userRef, {
-          'promotion.booked': FieldValue.increment(-1),
-        });
+        final userSnap = await tx.get(userRef);
+        final userData = userSnap.data()!;
+
+        if (userData['promotions'] != null &&
+            booking.promotionCreatedAt != null) {
+          // ── New path: find the exact promotion and decrement its booked ──
+          final promosRaw = (userData['promotions'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+
+          final targetMs = booking.promotionCreatedAt!.millisecondsSinceEpoch;
+          final idx = promosRaw.indexWhere((p) {
+            if (p['createdAt'] == null) return false;
+            return (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
+                targetMs;
+          });
+
+          if (idx != -1) {
+            final current = promosRaw[idx]['booked'] as int;
+            promosRaw[idx] = Map<String, dynamic>.from(promosRaw[idx])
+              ..['booked'] = current > 0 ? current - 1 : 0;
+            tx.update(userRef, {'promotions': promosRaw});
+          } else {
+            // Promotion not found by createdAt — fall back to decrementing
+            // the first bookable promotion (safe fallback).
+            tx.update(userRef, {
+              'promotions': promosRaw, // no-op, keeps data intact
+            });
+          }
+        } else {
+          // ── Legacy path: single `promotion` field ──
+          tx.update(userRef, {
+            'promotion.booked': FieldValue.increment(-1),
+          });
+        }
       }
     });
   }
