@@ -144,10 +144,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Open completed sessions sheet ─────────────────────────────────────────
 
-  void _openCompletedSessionsSheet(BuildContext context, AppUser user) {
+  void _openCompletedSessionsSheet(BuildContext context, AppUser user, Promotion promotion) {
+    // Filter to only bookings that belong to this promotion.
+    // Legacy bookings (no promotionCreatedAt) are shown under the oldest promotion.
+    final promoMs = promotion.createdAt.millisecondsSinceEpoch;
+    final isLegacyPromo = promotion.createdAt == DateTime(2000);
+
+    final filtered = _completedBookings.where((b) {
+      if (b.promotionCreatedAt != null) {
+        return b.promotionCreatedAt!.millisecondsSinceEpoch == promoMs;
+      }
+      // Legacy booking (no promotionCreatedAt) — show only under the legacy promo.
+      return isLegacyPromo;
+    }).toList();
+
     showCompletedSessionsSheet(
       context: context,
-      completedBookings: _completedBookings,
+      completedBookings: filtered,
       ratingsMap: _ratingsMap,
       user: user,
       onRatingSubmitted: _onRatingSubmitted,
@@ -308,16 +321,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final legacyHistory = user.promotionHistory;
 
     if (activePromos.isNotEmpty) {
-      // Show all active promotions only.
       return Column(
         children: activePromos.map((promo) {
+          // Check if this promo has any completed bookings.
+          final promoMs = promo.createdAt.millisecondsSinceEpoch;
+          final hasCompletedForThisPromo = _completedBookings.any((b) =>
+              b.promotionCreatedAt != null &&
+              b.promotionCreatedAt!.millisecondsSinceEpoch == promoMs);
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _buildPromotionCard(
               context,
               promo,
-              onTap: hasCompleted
-                  ? () => _openCompletedSessionsSheet(context, user)
+              onTap: hasCompletedForThisPromo
+                  ? () => _openCompletedSessionsSheet(context, user, promo)  // ← pass promo
                   : null,
               isHistory: false,
             ),
@@ -326,10 +344,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // No active promotions — show the single most recent inactive one if any.
+    // fallback inactive card
     Promotion? fallback;
     if (inactivePromos.isNotEmpty) {
-      fallback = inactivePromos.first; // already sorted newest-first
+      fallback = inactivePromos.first;
     } else if (legacyHistory.isNotEmpty) {
       fallback = legacyHistory.last;
     }
