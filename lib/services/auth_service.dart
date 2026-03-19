@@ -154,5 +154,54 @@ class AuthService {
     return await _getUserFromFirestore(user.uid);
   }
 
+  /// Creates the Firebase Auth account and immediately sends a
+  /// verification email. The Firestore document is written only
+  /// after the user confirms their email (handled in AuthGate).
+  Future<void> registerAndSendVerification({
+    required String email,
+    required String password,
+    required String name,
+    required String surname,
+  }) async {
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = credential.user;
+    if (user == null) throw Exception('User creation failed.');
+
+    // Send Firebase's built-in verification email (free, no Cloud Function).
+    await user.sendEmailVerification();
+
+    // Store the profile — role is 'pending' until email is verified.
+    final appUser = AppUser(
+      uid: user.uid,
+      role: UserRole.user,
+      name: name,
+      surname: surname,
+      email: email,
+      createdAt: DateTime.now(),
+      preferences: UserPreferences.defaultPreferences(),
+    );
+
+    await _db.collection('users').doc(user.uid).set(appUser.toMap());
+  }
+
+  /// Call this after the user says they clicked the link.
+  /// Reloads the Firebase Auth token and checks the flag.
+  Future<bool> checkEmailVerified() async {
+    await _auth.currentUser?.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  /// Resends the verification email. Firebase rate-limits this automatically.
+  Future<void> resendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user signed in.');
+    await user.sendEmailVerification();
+  }
+
   User? get currentFirebaseUser => _auth.currentUser;
 }
+
