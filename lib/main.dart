@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/main_shell.dart';
 import 'models/user_model.dart';
 import 'screens/admin/admin_shell.dart';
+import 'screens/verification_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +62,15 @@ class AuthGate extends StatelessWidget {
               );
             }
 
+            // Block unverified accounts from reaching the app.
+            final firebaseUser = authService.currentFirebaseUser;
+            if (firebaseUser != null && !firebaseUser.emailVerified) {
+              return VerificationScreen(
+                authService: authService,
+                email: firebaseUser.email ?? '',
+              );
+            }
+
             if (!userSnapshot.hasData) {
               return const Scaffold(
                 body: Center(child: Text('User data error')),
@@ -68,7 +78,6 @@ class AuthGate extends StatelessWidget {
             }
 
             final appUser = userSnapshot.data!;
-
             if (appUser.role == UserRole.admin) {
               return const AdminShell();
             } else {
