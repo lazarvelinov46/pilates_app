@@ -17,8 +17,6 @@ export const onSessionCancelled = onDocumentUpdated(
     const after = event.data?.after?.data();
 
     if (!before || !after) return null;
-
-    // Only react when active flips true → false
     if (before.active !== true || after.active !== false) return null;
 
     const sessionId = event.params.sessionId;
@@ -33,14 +31,11 @@ export const onSessionCancelled = onDocumentUpdated(
 
     const docs = bookingsSnap.docs;
 
-    // ── Cancel bookings + refund credits ─────────────────────────────────
-    // Each booking gets its own transaction so one bad user doc can't block
-    // the rest. Firestore transactions support reads + writes together,
-    // which we need to safely update the promotions array.
     const refundPromises = docs.map(async (bookingDoc) => {
       const bookingData = bookingDoc.data() as Record<string, unknown>;
       const userId = bookingData.userId as string;
       const userRef = db.collection("users").doc(userId);
+      const isTrialBooking = bookingData.isTrialBooking === true;
 
       await db.runTransaction(async (tx) => {
         const userSnap = await tx.get(userRef);
@@ -48,21 +43,28 @@ export const onSessionCancelled = onDocumentUpdated(
 
         const userData = userSnap.data() as Record<string, unknown>;
 
-        // Mark booking as cancelled by admin
+        // Cancel the booking.
         tx.update(bookingDoc.ref, {
           status: "cancelled_by_admin",
           cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
           cancelledByAdmin: true,
         });
 
-        // ── Refund to correct promotion ─────────────────────────────────
         const promoCreatedAtTs =
-          bookingData.promotionCreatedAt instanceof admin.firestore.Timestamp?
-            (bookingData.promotionCreatedAt as admin.firestore.Timestamp):
-            null;
+          bookingData.promotionCreatedAt instanceof
+          admin.firestore.Timestamp
+            ? (bookingData.promotionCreatedAt as admin.firestore.Timestamp)
+            : null;
 
+        // ── Trial booking not yet absorbed by a promotion ────────────────
+        if (isTrialBooking && !promoCreatedAtTs) {
+          // Reset the trial slot so the user can book again.
+          tx.update(userRef, {trialSessionUsed: false});
+          return;
+        }
+
+        // ── Normal refund path (also covers absorbed trial bookings) ──────
         if (Array.isArray(userData.promotions) && promoCreatedAtTs) {
-        // New path: find the exact promotion by createdAt and decrement booked.
           const promotions = (
             userData.promotions as Record<string, unknown>[]
           ).map((p) => ({...p}));
@@ -71,7 +73,8 @@ export const onSessionCancelled = onDocumentUpdated(
           const idx = promotions.findIndex(
             (p) =>
               p.createdAt instanceof admin.firestore.Timestamp &&
-              (p.createdAt as admin.firestore.Timestamp).toMillis() === targetMs
+              (p.createdAt as admin.firestore.Timestamp).toMillis() ===
+                targetMs
           );
 
           if (idx !== -1) {
@@ -79,12 +82,11 @@ export const onSessionCancelled = onDocumentUpdated(
             promotions[idx].booked = Math.max(0, current - 1);
             tx.update(userRef, {promotions});
           }
-          // If promotion not found by createdAt, booking is still cancelled —
-          // the credit is effectively left intact wherever it was.
-        } else if (userData.promotion) {
-          // Legacy path: single `promotion` field.
+        } else if (userData.promotion && !isTrialBooking) {
+          // Legacy single-field path.
           tx.update(userRef, {
-            "promotion.booked": admin.firestore.FieldValue.increment(-1),
+            "promotion.booked":
+              admin.firestore.FieldValue.increment(-1),
           });
         }
       });
@@ -92,10 +94,10 @@ export const onSessionCancelled = onDocumentUpdated(
 
     await Promise.all(refundPromises);
 
-    // ── FCM: notify each affected user ────────────────────────────────────
-    const sessionDate: Date = after.startsAt?.toDate?
-      after.startsAt.toDate():
-      new Date();
+    // ── FCM notifications ────────────────────────────────────────────────
+    const sessionDate: Date = after.startsAt?.toDate
+      ? after.startsAt.toDate()
+      : new Date();
 
     const formattedDate = sessionDate.toLocaleDateString("en-GB", {
       weekday: "short",
@@ -110,7 +112,7 @@ export const onSessionCancelled = onDocumentUpdated(
     const messaging = admin.messaging();
 
     const fcmPromises = docs.map(async (bookingDoc) => {
-      const {userId} = bookingDoc.data() as { userId: string };
+      const {userId} = bookingDoc.data() as {userId: string};
       const userSnap = await db.collection("users").doc(userId).get();
       const fcmToken: string | undefined = userSnap.data()?.fcmToken;
       if (!fcmToken) return;
@@ -135,8 +137,8 @@ export const onSessionCancelled = onDocumentUpdated(
     await Promise.all(fcmPromises);
 
     console.log(
-      `onSessionCancelled: cancelled ${docs.length}
-       booking(s) for session ${sessionId}`
+      `onSessionCancelled: cancelled ${docs.length} booking(s) ` +
+        `for session ${sessionId}`
     );
 
     return null;
