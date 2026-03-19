@@ -298,4 +298,16 @@ class BookingService {
         .snapshots()
         .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
+
+  /// Real-time stream of all active bookings for a specific session.
+  /// Used by the admin attendees screen to show who has booked a session.
+  Stream<List<Booking>> getBookingsForSession(String sessionId) {
+    return _db
+        .collection('bookings')
+        .where('sessionId', isEqualTo: sessionId)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+  }
 }
