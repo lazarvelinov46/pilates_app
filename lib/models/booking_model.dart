@@ -17,6 +17,9 @@ class Booking {
   /// Null for bookings created before multi-promotion support.
   final DateTime? promotionCreatedAt;
 
+  /// True when this booking was made without an active promotion (trial slot).
+  final bool isTrialBooking;
+
   Booking({
     required this.id,
     required this.userId,
@@ -26,6 +29,7 @@ class Booking {
     required this.status,
     required this.reminderSent,
     this.promotionCreatedAt,
+    this.isTrialBooking = false,
   });
 
   String get formattedDateTime {
@@ -63,6 +67,7 @@ class Booking {
       promotionCreatedAt: data['promotionCreatedAt'] != null
           ? (data['promotionCreatedAt'] as Timestamp).toDate()
           : null,
+      isTrialBooking: data['isTrialBooking'] as bool? ?? false,
     );
   }
 
@@ -86,6 +91,7 @@ class Booking {
       'createdAt': Timestamp.fromDate(createdAt),
       'status': statusStr,
       'reminderSent': reminderSent,
+      'isTrialBooking': isTrialBooking,
       if (promotionCreatedAt != null)
         'promotionCreatedAt': Timestamp.fromDate(promotionCreatedAt!),
     };

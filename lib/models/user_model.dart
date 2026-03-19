@@ -32,18 +32,22 @@ class AppUser {
     this.trialSessionUsed = false,
   });
 
+  /// Promotions that still have sessions remaining and haven't expired,
+  /// sorted oldest first (so bookings consume the oldest promotion first).
   List<Promotion> get activePromotions {
     final active = promotions.where((p) => p.canBook()).toList();
     active.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return active;
   }
 
+  /// All promotions sorted oldest first (for display on home screen).
   List<Promotion> get sortedPromotions {
     final sorted = [...promotions];
     sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return sorted;
   }
 
+  /// Whether the user has at least one bookable promotion.
   bool get hasActivePromotion => activePromotions.isNotEmpty;
 
   /// User can book a trial session: no active promotion and trial not yet used.
