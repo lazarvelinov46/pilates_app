@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'main_shell.dart';
 import 'admin/admin_shell.dart';
+import 'verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthService authService;
@@ -63,31 +64,40 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _loading = true);
 
     try {
-      AppUser appUser;
-
       if (_isLogin) {
-        appUser = await widget.authService.signInWithEmail(
+        // ── Login path ───────────────────────────────────────────────────
+        final appUser = await widget.authService.signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+
+        if (!mounted) return;
+
+        final target = appUser.role == UserRole.admin
+            ? const AdminShell()
+            : const MainShell();
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => target),
+        );
       } else {
-        appUser = await widget.authService.registerWithEmail(
+        // ── Register path — create account + send verification email ─────
+        await widget.authService.registerAndSendVerification(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
           surname: _surnameController.text.trim(),
         );
-      }
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (appUser.role == UserRole.admin) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AdminShell()),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainShell()),
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerificationScreen(
+              authService: widget.authService,
+              email: _emailController.text.trim(),
+            ),
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -117,11 +127,11 @@ class _LoginScreenState extends State<LoginScreen>
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Something went wrong.'),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -147,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               const SizedBox(height: 24),
 
-              // ── Logo / Branding ────────────────────────────────────────
+              // ── Logo / Branding ──────────────────────────────────────
               Container(
                 width: 80,
                 height: 80,
@@ -186,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen>
 
               const SizedBox(height: 36),
 
-              // ── Form Card ─────────────────────────────────────────────
+              // ── Form Card ────────────────────────────────────────────
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Container(
@@ -208,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Register-only fields ───────────────────────────
+                      // ── Register-only fields ─────────────────────────
                       if (!_isLogin) ...[
                         Row(
                           children: [
@@ -232,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 14),
                       ],
 
-                      // ── Email ──────────────────────────────────────────
+                      // ── Email ────────────────────────────────────────
                       _StyledTextField(
                         controller: _emailController,
                         label: 'Email',
@@ -241,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       const SizedBox(height: 14),
 
-                      // ── Password ───────────────────────────────────────
+                      // ── Password ─────────────────────────────────────
                       _StyledTextField(
                         controller: _passwordController,
                         label: 'Password',
@@ -262,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 24),
 
-                      // ── Submit button ──────────────────────────────────
+                      // ── Submit button ────────────────────────────────
                       SizedBox(
                         height: 52,
                         child: _loading
@@ -300,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen>
 
               const SizedBox(height: 20),
 
-              // ── Toggle login / register ────────────────────────────────
+              // ── Toggle login / register ──────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -336,9 +346,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared styled text field
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Shared styled text field ─────────────────────────────────────────────────
 
 class _StyledTextField extends StatelessWidget {
   final TextEditingController controller;
