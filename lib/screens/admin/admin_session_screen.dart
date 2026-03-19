@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/session_model.dart';
 import '../../services/session_service.dart';
+import 'admin_session_attendees_screen.dart';
 
 class AdminSessionsScreen extends StatelessWidget {
   const AdminSessionsScreen({super.key});
@@ -80,9 +81,9 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                   final date = await showDatePicker(
                     context: ctx,
                     initialDate: _selectedDate,
-                    firstDate:
-                        DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365)),
                   );
                   if (date == null) return;
                   final time = await showTimePicker(
@@ -97,25 +98,23 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                   });
                 },
               ),
-              if (startDT != null) ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.access_time_filled),
-                  label: Text(endDT == null
-                      ? 'Select End Time'
-                      : DateFormat('HH:mm').format(endDT!)),
-                  onPressed: () async {
-                    final time = await showTimePicker(
-                      context: ctx,
-                      initialTime: TimeOfDay(
-                          hour: endDT?.hour ?? startDT!.hour + 1, minute: 0),
-                    );
-                    if (time == null) return;
-                    setSt(() => endDT = DateTime(startDT!.year,
-                        startDT!.month, startDT!.day, time.hour, time.minute));
-                  },
-                ),
-              ],
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.access_time_filled),
+                label: Text(endDT == null
+                    ? 'Select End Time'
+                    : DateFormat('HH:mm').format(endDT!)),
+                onPressed: () async {
+                  final time = await showTimePicker(
+                    context: ctx,
+                    initialTime: TimeOfDay(
+                        hour: endDT?.hour ?? startDT!.hour + 1, minute: 0),
+                  );
+                  if (time == null) return;
+                  setSt(() => endDT = DateTime(startDT!.year,
+                      startDT!.month, startDT!.day, time.hour, time.minute));
+                },
+              ),
             ]),
           ),
           actions: [
@@ -383,6 +382,9 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final s = todaysSessions[i];
+                    final isPast = s.startsAt.isBefore(DateTime.now());
+                    final hasBookings = s.bookedCount > 0;
+
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: s.active
@@ -393,35 +395,60 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                       ),
                       title: Text(
                           '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
-                      subtitle: Text(
-                          'Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
+                      subtitle: Row(
+                        children: [
+                          Text('Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
+                          if (hasBookings) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.group,
+                              size: 13,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ],
+                        ],
+                      ),
+                      // Tap → attendees list (available whenever there are bookings,
+                      // regardless of whether the session is past, active, or future)
+                      onTap: hasBookings
+                          ? () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      AdminSessionAttendeesScreen(session: s),
+                                ),
+                              )
+                          : null,
                       trailing: !s.active
                           ? const Chip(
                               label: Text('Inactive'),
                               backgroundColor: Colors.black12)
-                          : s.startsAt.isBefore(DateTime.now())
+                          : isPast
                               ? const Chip(
                                   label: Text('Completed'),
-                                  backgroundColor: Colors.black12)
+                                  backgroundColor: Colors.black12,
+                                )
                               : IconButton(
-                                  icon: const Icon(Icons.block, color: Colors.red),
+                                  icon: const Icon(Icons.cancel_outlined,
+                                      color: Colors.red),
                                   tooltip: 'Cancel session',
-                                  onPressed: () => _confirmDeactivate(context, s)),
+                                  onPressed: () =>
+                                      _confirmDeactivate(context, s),
+                                ),
                     );
                   },
                 ),
               ),
           ]),
           floatingActionButton: FloatingActionButton(
-              onPressed: () => _showCreateDialog(context),
-              child: const Icon(Icons.add)),
+            onPressed: () => _showCreateDialog(context),
+            child: const Icon(Icons.add),
+          ),
         );
       },
     );
   }
 }
-
-// ─── Custom inline calendar widget ───────────────────────────────────────────
 
 class _AdminCalendar extends StatefulWidget {
   final DateTime selectedDate;
