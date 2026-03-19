@@ -223,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 24),
 
+                        // ── Body: upcoming / no-promo / quick-book ─────────────────
                         if (upcomingBookings.isNotEmpty) ...[
                           Text(
                             'Your upcoming sessions',
@@ -240,11 +241,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         : null,
                                   ))
                               .toList(),
-                          
-                        ] else if (!user.hasActivePromotion) ...[
+                        ] else if (!user.hasActivePromotion && user.trialSessionUsed) ...[
                           _buildNoPromotionBanner(context, user),
                         ] else ...[
-                          // quick-book section — unchanged
+                          // Quick-book: shown for both regular users and trial-eligible users.
+                          if (!user.hasActivePromotion) ...[
+                            const _TrialBookingBanner(),
+                            const SizedBox(height: 12),
+                          ],
                           Row(
                             children: [
                               Text(
@@ -305,25 +309,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Promotion section ─────────────────────────────────────────────────────
 
-  Widget _buildPromotionSection(BuildContext context, AppUser user) {
-    final hasCompleted = _completedBookings.isNotEmpty;
+  // ── Promotion section ─────────────────────────────────────────────────────
 
-    // Active = not expired AND has sessions remaining.
+  Widget _buildPromotionSection(BuildContext context, AppUser user) {
     final activePromos = user.sortedPromotions.where((p) => p.canBook()).toList();
 
-    // Inactive from the promotions array (exhausted or expired), newest first.
     final inactivePromos = user.sortedPromotions
         .where((p) => !p.canBook())
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Legacy archived promotions (from promotionHistory field), newest last.
     final legacyHistory = user.promotionHistory;
 
+    // ── Active promotions ──────────────────────────────────────────────────
     if (activePromos.isNotEmpty) {
       return Column(
         children: activePromos.map((promo) {
-          // Check if this promo has any completed bookings.
           final promoMs = promo.createdAt.millisecondsSinceEpoch;
           final hasCompletedForThisPromo = _completedBookings.any((b) =>
               b.promotionCreatedAt != null &&
@@ -335,7 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               promo,
               onTap: hasCompletedForThisPromo
-                  ? () => _openCompletedSessionsSheet(context, user, promo)  // ← pass promo
+                  ? () => _openCompletedSessionsSheet(context, user, promo)
                   : null,
               isHistory: false,
             ),
@@ -344,7 +345,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // fallback inactive card
+    // ── Trial session active (no promotion, trial slot consumed) ───────────
+    if (user.trialSessionUsed) {
+      return _TrialSessionCard();
+    }
+
+    // ── Fallback: show last inactive/expired promotion ─────────────────────
     Promotion? fallback;
     if (inactivePromos.isNotEmpty) {
       fallback = inactivePromos.first;
@@ -361,6 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // ── Completely new user: no promotions at all ──────────────────────────
     return _NoPromotionCard();
   }
 
@@ -678,6 +685,89 @@ class _NoPromotionCard extends StatelessWidget {
                 const Text('Contact us to purchase a session package.',
                     style: TextStyle(color: Colors.grey, fontSize: 13)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrialSessionCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.secondaryContainer.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.secondary.withOpacity(0.35)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: cs.secondary.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.card_giftcard_outlined,
+                color: cs.secondary, size: 26),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trial session booked',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: cs.secondary,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Contact the studio to purchase a package — '
+                  'your trial session will be counted as the first one.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: cs.onSurface.withOpacity(0.65)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrialBookingBanner extends StatelessWidget {
+  const _TrialBookingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: cs.secondaryContainer.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.secondary.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: cs.secondary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No active promotion — you can book 1 free trial session.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurface.withOpacity(0.8),
+                  ),
             ),
           ),
         ],
