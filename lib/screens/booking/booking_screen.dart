@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/session_model.dart';
 import '../../models/booking_model.dart';
+import '../../models/user_model.dart';
+import '../../services/user_service.dart';
 import '../../services/session_service.dart';
 import '../../services/booking_service.dart';
 import '../../services/notification_service.dart';
@@ -26,6 +28,11 @@ class _BookingScreenState extends State<BookingScreen> {
 
   DateTime selectedDate = DateTime.now();
   final String userId = FirebaseAuth.instance.currentUser!.uid;
+  
+  // Add to _BookingScreenState fields:
+  late Stream<AppUser> _userStream;
+
+  // In initState, add:
 
   // ── Real-time streams ─────────────────────────────────────────────────────
 
@@ -50,6 +57,7 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
+    _userStream = UserService().getUserStream(userId);
     _sessionsStream = _sessionService.streamSessionsForDate(selectedDate);
     _activeBookingsStream =
         _bookingService.getUserActiveBookingsStream(userId);
@@ -250,85 +258,117 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // ── Sessions list (real-time) ────────────────────────────────────
           Expanded(
-            child: StreamBuilder<Set<String>>(
-              stream: _activeBookingsStream,
-              builder: (context, bookingsSnap) {
-                // Active booking IDs from Firestore (live).
-                final activeBookingIds = bookingsSnap.data ?? {};
+            child: StreamBuilder<AppUser>(
+              stream: _userStream,
+              builder: (context, userSnap) {
+                final user = userSnap.data;
+                return Column(
+                  children: [
+                    // Trial status banner
+                    if (user != null && !user.hasActivePromotion)
+                      _TrialStatusBanner(trialSessionUsed: user.trialSessionUsed),
 
-                return StreamBuilder<List<Session>>(
-                  stream: _sessionsStream,
-                  builder: (context, sessionsSnap) {
-                    // Show spinner only on first load, not on updates.
-                    if (sessionsSnap.connectionState ==
-                            ConnectionState.waiting &&
-                        !sessionsSnap.hasData) {
-                      return const Center(
-                          child: CircularProgressIndicator());
-                    }
+                    // Sessions list
+                    Expanded(
+                      child: StreamBuilder<Set<String>>(
+                        stream: _activeBookingsStream,
+                        builder: (context, bookingsSnap) {
+                          final activeBookingIds = bookingsSnap.data ?? {};
+                          return StreamBuilder<List<Session>>(
+                            stream: _sessionsStream,
+                            builder: (context, sessionsSnap) {
+                              if (sessionsSnap.connectionState ==
+                                      ConnectionState.waiting &&
+                                  !sessionsSnap.hasData) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
 
-                    final sessions = sessionsSnap.data ?? [];
+                              final sessions = sessionsSnap.data ?? [];
 
-                    if (sessions.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.event_busy,
-                                size: 48, color: Colors.grey),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No sessions on '
-                              '${DateFormat('dd MMM').format(selectedDate)}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                              if (sessions.isEmpty) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.event_busy,
+                                          size: 48, color: Colors.grey),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No sessions on '
+                                        '${DateFormat('dd MMM').format(selectedDate)}',
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
 
-                    return ListView.builder(
-                      controller: _scrollController,
-                      padding:
-                          const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      itemCount: sessions.length,
-                      itemBuilder: (context, index) {
-                        final session = sessions[index];
-
-                        // A session is "cancelled" when:
-                        //   • The user explicitly cancelled it this session
-                        //     (optimistic local state), OR
-                        //   • It's no longer in the active bookings stream
-                        //     but was already in _cancelledSessionIds.
-                        final isCancelled =
-                            _cancelledSessionIds.contains(session.id);
-
-                        final alreadyBooked =
-                            activeBookingIds.contains(session.id);
-
-                        return SessionCard(
-                          session: session,
-                          alreadyBooked: alreadyBooked && !isCancelled,
-                          isCancelled: isCancelled,
-                          onBook: () => _confirmBooking(session),
-
-                          // -----------------------------------------------
-                          // Re-book support: to let users re-book a session
-                          // they cancelled, pass an onBookAgain callback.
-                          // Steps:
-                          //   1. Uncomment the onBookAgain field in
-                          //      SessionCard and its usage in the button logic.
-                          //   2. Uncomment the line below.
-                          // -----------------------------------------------
-                          // onBookAgain: isCancelled
-                          //     ? () => _confirmBooking(session)
-                          //     : null,
-                        );
-                      },
-                    );
-                  },
+                              return ListView.builder(
+                                controller: _scrollController,
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                itemCount: sessions.length,
+                                itemBuilder: (context, index) {
+                                  final session = sessions[index];
+                                  final isCancelled =
+                                      _cancelledSessionIds.contains(session.id);
+                                  final alreadyBooked =
+                                      activeBookingIds.contains(session.id);
+                                  return SessionCard(
+                                    session: session,
+                                    alreadyBooked: alreadyBooked && !isCancelled,
+                                    isCancelled: isCancelled,
+                                    onBook: () => _confirmBooking(session),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrialStatusBanner extends StatelessWidget {
+  final bool trialSessionUsed;
+  const _TrialStatusBanner({required this.trialSessionUsed});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: cs.secondaryContainer.withOpacity(0.45),
+      child: Row(
+        children: [
+          Icon(
+            trialSessionUsed
+                ? Icons.check_circle_outline
+                : Icons.card_giftcard_outlined,
+            color: cs.secondary,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              trialSessionUsed
+                  ? 'Trial session booked — purchase a package to continue.'
+                  : 'No active promotion. You can book 1 free trial session.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurface.withOpacity(0.8),
+                  ),
             ),
           ),
         ],
