@@ -32,11 +32,7 @@ class BookingService {
         ];
       }
 
-      if (promosRaw.isEmpty) {
-        throw Exception('No active promotion');
-      }
-
-      // Sort oldest-first by createdAt (legacy entries without createdAt go first).
+      // Sort oldest-first.
       promosRaw.sort((a, b) {
         final aMs = a['createdAt'] != null
             ? (a['createdAt'] as Timestamp).millisecondsSinceEpoch
@@ -47,7 +43,7 @@ class BookingService {
         return aMs.compareTo(bMs);
       });
 
-      // Find the first promotion that is not expired and has sessions left.
+      // Find the first bookable promotion.
       int? targetIdx;
       for (int i = 0; i < promosRaw.length; i++) {
         final p = promosRaw[i];
@@ -62,15 +58,9 @@ class BookingService {
         }
       }
 
-      if (targetIdx == null) {
-        throw Exception('No sessions left in your promotion');
-      }
-
-      // ── Session validation ──
+      // ── Session validation ───────────────────────────────────────────────
       final sessionSnap = await tx.get(sessionRef);
-      if (!sessionSnap.exists) {
-        throw Exception('Session does not exist');
-      }
+      if (!sessionSnap.exists) throw Exception('Session does not exist');
 
       final sessionData = sessionSnap.data()!;
       if (sessionData['active'] != true) {
@@ -79,31 +69,52 @@ class BookingService {
 
       final int capacity = sessionData['capacity'];
       final int bookedCount = sessionData['bookedCount'];
+      if (bookedCount >= capacity) throw Exception('Session is full');
 
-      if (bookedCount >= capacity) {
-        throw Exception('Session is full');
-      }
-
-      // Check duplicate booking.
+      // Duplicate-booking guard.
       final existing = await bookingsRef
           .where('userId', isEqualTo: userId)
           .where('sessionId', isEqualTo: sessionId)
           .where('status', isEqualTo: 'active')
           .get();
-
       if (existing.docs.isNotEmpty) {
         throw Exception('You already booked this session');
       }
 
-      // ── Charge the target promotion ──
+      final bookingRef = bookingsRef.doc();
+
+      // ── TRIAL PATH: no bookable promotion found ──────────────────────────
+      if (targetIdx == null) {
+        final trialAlreadyUsed =
+            userData['trialSessionUsed'] as bool? ?? false;
+        if (trialAlreadyUsed) {
+          throw Exception(
+            'You have no active promotion and your free trial session '
+            'has already been used.',
+          );
+        }
+
+        tx.set(bookingRef, {
+          'userId': userId,
+          'sessionId': sessionId,
+          'sessionStartsAt': sessionData['startsAt'],
+          'createdAt': Timestamp.now(),
+          'status': 'active',
+          'reminderSent': false,
+          'isTrialBooking': true,
+          // No promotionCreatedAt — linked when promotion is assigned.
+        });
+        tx.update(sessionRef, {'bookedCount': bookedCount + 1});
+        tx.update(userRef, {'trialSessionUsed': true});
+        return;
+      }
+
+      // ── NORMAL PATH: charge the target promotion ─────────────────────────
       final targetPromo = promosRaw[targetIdx];
       final promoCreatedAt = targetPromo['createdAt'] as Timestamp?;
 
       promosRaw[targetIdx] = Map<String, dynamic>.from(targetPromo)
         ..['booked'] = (targetPromo['booked'] as int) + 1;
-
-      // ── Write all changes ──
-      final bookingRef = bookingsRef.doc();
 
       tx.set(bookingRef, {
         'userId': userId,
@@ -112,15 +123,13 @@ class BookingService {
         'createdAt': Timestamp.now(),
         'status': 'active',
         'reminderSent': false,
+        'isTrialBooking': false,
         if (promoCreatedAt != null) 'promotionCreatedAt': promoCreatedAt,
       });
 
-      tx.update(sessionRef, {
-        'bookedCount': bookedCount + 1,
-      });
+      tx.update(sessionRef, {'bookedCount': bookedCount + 1});
 
       final userUpdates = <String, dynamic>{'promotions': promosRaw};
-      // Clean up legacy field if still present.
       if (userData['promotion'] != null) {
         userUpdates['promotion'] = FieldValue.delete();
       }
@@ -132,18 +141,14 @@ class BookingService {
   // Refunds the credit to the exact promotion that was originally charged,
   // identified by `booking.promotionCreatedAt`.
 
-  Future<void> cancelBooking({
-    required Booking booking,
-  }) async {
+  Future<void> cancelBooking({required Booking booking}) async {
     final bookingRef = _db.collection('bookings').doc(booking.id);
     final sessionRef = _db.collection('sessions').doc(booking.sessionId);
     final userRef = _db.collection('users').doc(booking.userId);
 
     await _db.runTransaction((tx) async {
       final bookingSnap = await tx.get(bookingRef);
-      if (!bookingSnap.exists) {
-        throw Exception('Booking not found');
-      }
+      if (!bookingSnap.exists) throw Exception('Booking not found');
 
       final bookingData = bookingSnap.data()!;
       if (bookingData['status'] != 'active') {
@@ -151,9 +156,7 @@ class BookingService {
       }
 
       final sessionSnap = await tx.get(sessionRef);
-      if (!sessionSnap.exists) {
-        throw Exception('Session not found');
-      }
+      if (!sessionSnap.exists) throw Exception('Session not found');
 
       final int bookedCount = sessionSnap['bookedCount'];
 
@@ -166,43 +169,43 @@ class BookingService {
         'bookedCount': bookedCount > 0 ? bookedCount - 1 : 0,
       });
 
-      // Refund session slot only if cancelled within the allowed window (12h).
-      if (booking.canCancel()) {
-        final userSnap = await tx.get(userRef);
-        final userData = userSnap.data()!;
+      if (!booking.canCancel()) return;
 
-        if (userData['promotions'] != null &&
-            booking.promotionCreatedAt != null) {
-          // ── New path: find the exact promotion and decrement its booked ──
-          final promosRaw = (userData['promotions'] as List)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
+      final userSnap = await tx.get(userRef);
+      final userData = userSnap.data()!;
 
-          final targetMs = booking.promotionCreatedAt!.millisecondsSinceEpoch;
-          final idx = promosRaw.indexWhere((p) {
-            if (p['createdAt'] == null) return false;
-            return (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
-                targetMs;
-          });
+      // ── Trial booking, not yet absorbed by a promotion ───────────────────
+      if (booking.isTrialBooking && booking.promotionCreatedAt == null) {
+        tx.update(userRef, {'trialSessionUsed': false});
+        return;
+      }
 
-          if (idx != -1) {
-            final current = promosRaw[idx]['booked'] as int;
-            promosRaw[idx] = Map<String, dynamic>.from(promosRaw[idx])
-              ..['booked'] = current > 0 ? current - 1 : 0;
-            tx.update(userRef, {'promotions': promosRaw});
-          } else {
-            // Promotion not found by createdAt — fall back to decrementing
-            // the first bookable promotion (safe fallback).
-            tx.update(userRef, {
-              'promotions': promosRaw, // no-op, keeps data intact
-            });
-          }
-        } else {
-          // ── Legacy path: single `promotion` field ──
-          tx.update(userRef, {
-            'promotion.booked': FieldValue.increment(-1),
-          });
+      // ── Regular path (or trial already absorbed → has promotionCreatedAt) ─
+      if (userData['promotions'] != null &&
+          booking.promotionCreatedAt != null) {
+        final promosRaw = (userData['promotions'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+
+        final targetMs =
+            booking.promotionCreatedAt!.millisecondsSinceEpoch;
+        final idx = promosRaw.indexWhere((p) {
+          if (p['createdAt'] == null) return false;
+          return (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
+              targetMs;
+        });
+
+        if (idx != -1) {
+          final current = promosRaw[idx]['booked'] as int;
+          promosRaw[idx] = Map<String, dynamic>.from(promosRaw[idx])
+            ..['booked'] = current > 0 ? current - 1 : 0;
+          tx.update(userRef, {'promotions': promosRaw});
         }
+      } else if (!booking.isTrialBooking) {
+        // Legacy single-field path.
+        tx.update(userRef, {
+          'promotion.booked': FieldValue.increment(-1),
+        });
       }
     });
   }
@@ -216,7 +219,6 @@ class BookingService {
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: 'active')
         .get();
-
     return snap.docs.map((d) => d['sessionId'] as String).toSet();
   }
 
@@ -240,7 +242,6 @@ class BookingService {
         .where('status', isEqualTo: 'active')
         .orderBy('sessionStartsAt')
         .get();
-
     return snap.docs.map((d) => Booking.fromFirestore(d)).toList();
   }
 
@@ -296,7 +297,8 @@ class BookingService {
         .where('sessionStartsAt', isGreaterThan: now)
         .orderBy('sessionStartsAt')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Booking.fromFirestore(d)).toList());
+        .map((snap) =>
+            snap.docs.map((d) => Booking.fromFirestore(d)).toList());
   }
 
   /// Real-time stream of all active bookings for a specific session.
