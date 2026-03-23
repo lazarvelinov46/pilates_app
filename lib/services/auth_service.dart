@@ -9,26 +9,36 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  
 
-  /// =============================
-  /// EMAIL + PASSWORD REGISTER
-  /// =============================
-  Future<AppUser> registerWithEmail({
+  // ── Email verification ────────────────────────────────────────────────────
+
+  /// Creates the Firebase Auth account, sends a verification email,
+  /// and writes the Firestore user document.
+  Future<void> registerAndSendVerification({
     required String email,
     required String password,
     required String name,
     required String surname,
   }) async {
+    print('>>> Starting registration for $email');
+
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
 
     final user = credential.user;
+    if (user == null) throw Exception('User creation failed.');
 
-    if (user == null) {
-      throw Exception("User creation failed.");
+    print('>>> Auth account created: ${user.uid}');
+
+    try {
+      await user.updateDisplayName('$name $surname');
+      await user.sendEmailVerification();
+      print('>>> sendEmailVerification() completed successfully');
+    } catch (e) {
+      print('>>> sendEmailVerification() FAILED: $e');
+      rethrow;
     }
 
     final appUser = AppUser(
@@ -42,13 +52,24 @@ class AuthService {
     );
 
     await _db.collection('users').doc(user.uid).set(appUser.toMap());
-
-    return appUser;
+    print('>>> Firestore document written successfully');
   }
 
-  /// =============================
-  /// EMAIL + PASSWORD LOGIN
-  /// =============================
+  /// Reloads the Firebase Auth token and checks the verified flag.
+  Future<bool> checkEmailVerified() async {
+    await _auth.currentUser?.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  /// Resends the verification email. Firebase rate-limits this automatically.
+  Future<void> resendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user signed in.');
+    await user.sendEmailVerification();
+  }
+
+  // ── Email + password login ────────────────────────────────────────────────
+
   Future<AppUser> signInWithEmail({
     required String email,
     required String password,
@@ -59,21 +80,15 @@ class AuthService {
     );
 
     final user = credential.user;
-
-    if (user == null) {
-      throw Exception("Login failed.");
-    }
+    if (user == null) throw Exception('Login failed.');
 
     return await _getUserFromFirestore(user.uid);
   }
 
-  /// =============================
-  /// GOOGLE LOGIN
-  /// =============================
-  Future<AppUser?> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser =
-        await _googleSignIn.signIn();
+  // ── Google login ──────────────────────────────────────────────────────────
 
+  Future<AppUser?> signInWithGoogle() async {
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser == null) return null;
 
     final GoogleSignInAuthentication googleAuth =
@@ -84,14 +99,9 @@ class AuthService {
       idToken: googleAuth.idToken,
     );
 
-    final userCredential =
-        await _auth.signInWithCredential(credential);
-
+    final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user;
-
-    if (user == null) {
-      throw Exception("Google authentication failed.");
-    }
+    if (user == null) throw Exception('Google authentication failed.');
 
     final doc = await _db.collection('users').doc(user.uid).get();
 
@@ -105,7 +115,6 @@ class AuthService {
         createdAt: DateTime.now(),
         preferences: UserPreferences.defaultPreferences(),
       );
-
       await _db.collection('users').doc(user.uid).set(newUser.toMap());
       return newUser;
     }
@@ -113,95 +122,36 @@ class AuthService {
     return AppUser.fromFirestore(doc);
   }
 
-  /// =============================
-  /// FETCH USER FROM FIRESTORE
-  /// =============================
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
   Future<AppUser> _getUserFromFirestore(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
-
-    if (!doc.exists) {
-      throw Exception("User document does not exist.");
-    }
-
+    if (!doc.exists) throw Exception('User document does not exist.');
     return AppUser.fromFirestore(doc);
   }
 
-  /// =============================
-  /// RESET PASSWORD
-  /// =============================
+  // ── Password reset ────────────────────────────────────────────────────────
+
   Future<void> resetPassword(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  /// =============================
-  /// SIGN OUT
-  /// =============================
+  // ── Sign out ──────────────────────────────────────────────────────────────
+
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  /// =============================
-  /// AUTH STATE STREAM
-  /// =============================
-  Stream<User?> authStateChanges() {
-    return _auth.authStateChanges();
-  }
+  // ── Auth state ────────────────────────────────────────────────────────────
+
+  Stream<User?> authStateChanges() => _auth.authStateChanges();
+
   Future<AppUser?> getCurrentAppUser() async {
     final user = _auth.currentUser;
     if (user == null) return null;
-
     return await _getUserFromFirestore(user.uid);
-  }
-
-  /// Creates the Firebase Auth account and immediately sends a
-  /// verification email. The Firestore document is written only
-  /// after the user confirms their email (handled in AuthGate).
-  Future<void> registerAndSendVerification({
-    required String email,
-    required String password,
-    required String name,
-    required String surname,
-  }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = credential.user;
-    if (user == null) throw Exception('User creation failed.');
-
-    // Send Firebase's built-in verification email (free, no Cloud Function).
-    await user.sendEmailVerification();
-
-    // Store the profile — role is 'pending' until email is verified.
-    final appUser = AppUser(
-      uid: user.uid,
-      role: UserRole.user,
-      name: name,
-      surname: surname,
-      email: email,
-      createdAt: DateTime.now(),
-      preferences: UserPreferences.defaultPreferences(),
-    );
-
-    await _db.collection('users').doc(user.uid).set(appUser.toMap());
-  }
-
-  /// Call this after the user says they clicked the link.
-  /// Reloads the Firebase Auth token and checks the flag.
-  Future<bool> checkEmailVerified() async {
-    await _auth.currentUser?.reload();
-    return _auth.currentUser?.emailVerified ?? false;
-  }
-
-  /// Resends the verification email. Firebase rate-limits this automatically.
-  Future<void> resendVerificationEmail() async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('No user signed in.');
-    await user.sendEmailVerification();
   }
 
   User? get currentFirebaseUser => _auth.currentUser;
 }
-
