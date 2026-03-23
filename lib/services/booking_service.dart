@@ -147,7 +147,12 @@ class BookingService {
     final userRef = _db.collection('users').doc(booking.userId);
 
     await _db.runTransaction((tx) async {
+      // ── ALL READS FIRST ──────────────────────────────────────────────────
       final bookingSnap = await tx.get(bookingRef);
+      final sessionSnap = await tx.get(sessionRef);
+      final userSnap = await tx.get(userRef);
+
+      // ── VALIDATION ───────────────────────────────────────────────────────
       if (!bookingSnap.exists) throw Exception('Booking not found');
 
       final bookingData = bookingSnap.data()!;
@@ -155,9 +160,9 @@ class BookingService {
         throw Exception('Booking is already cancelled');
       }
 
-      final sessionSnap = await tx.get(sessionRef);
       if (!sessionSnap.exists) throw Exception('Session not found');
 
+      // ── WRITES ───────────────────────────────────────────────────────────
       final int bookedCount = sessionSnap['bookedCount'];
 
       tx.update(bookingRef, {
@@ -171,7 +176,6 @@ class BookingService {
 
       if (!booking.canCancel()) return;
 
-      final userSnap = await tx.get(userRef);
       final userData = userSnap.data()!;
 
       // ── Trial booking, not yet absorbed by a promotion ───────────────────
@@ -187,8 +191,7 @@ class BookingService {
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
 
-        final targetMs =
-            booking.promotionCreatedAt!.millisecondsSinceEpoch;
+        final targetMs = booking.promotionCreatedAt!.millisecondsSinceEpoch;
         final idx = promosRaw.indexWhere((p) {
           if (p['createdAt'] == null) return false;
           return (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
