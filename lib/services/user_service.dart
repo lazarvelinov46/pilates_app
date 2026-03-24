@@ -41,6 +41,122 @@ class UserService {
     });
   }
 
+  // ── Attendance sync ────────────────────────────────────────────────────────
+  //
+  // Called when the HomeScreen loads. Finds every active booking whose session
+  // has already started and hasn't yet been counted, then:
+  //   • decrements `booked` in the matching promotion
+  //   • increments `attended` in the matching promotion
+  //   • stamps `attendanceRecorded: true` on the booking (idempotency guard)
+  //   • archives promotions that are both expired AND fully exhausted
+  //
+  // Comparing against sessionStartsAt is intentional: once a session begins
+  // the slot is consumed whether the user physically attended or not.
+
+  Future<void> syncAttendedSessions(String userId) async {
+    final nowTs = Timestamp.fromDate(DateTime.now());
+
+    // Fetch all past active bookings. The composite index needed is:
+    //   bookings | userId ASC · status ASC · sessionStartsAt ASC
+    // Firestore will surface a link to create it on first run if absent.
+    final snap = await _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .where('sessionStartsAt', isLessThan: nowTs)
+        .get();
+
+    if (snap.docs.isEmpty) return;
+
+    // Client-side filter: skip already-recorded ones (handles legacy bookings
+    // that predate the attendanceRecorded field — they'll be treated as false).
+    final toProcess = snap.docs
+        .where((doc) => doc.data()['attendanceRecorded'] != true)
+        .toList();
+
+    if (toProcess.isEmpty) return;
+
+    await _db.runTransaction((tx) async {
+      final userRef = _db.collection('users').doc(userId);
+      final userSnap = await tx.get(userRef);
+      if (!userSnap.exists) return;
+
+      final userData = userSnap.data()!;
+
+      // Build a mutable copy of the promotions array.
+      final List<Map<String, dynamic>> promos = userData['promotions'] != null
+          ? (userData['promotions'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : [];
+
+      // ── Step 1: move booked → attended for each unrecorded past booking ──
+      for (final bookingDoc in toProcess) {
+        final data = bookingDoc.data();
+        final promoTs = data['promotionCreatedAt'];
+
+        if (promoTs != null && promos.isNotEmpty) {
+          final targetMs = (promoTs as Timestamp).millisecondsSinceEpoch;
+          final idx = promos.indexWhere((p) =>
+              p['createdAt'] is Timestamp &&
+              (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
+                  targetMs);
+
+          if (idx != -1) {
+            final currentBooked = (promos[idx]['booked'] as int? ?? 0);
+            final currentAttended = (promos[idx]['attended'] as int? ?? 0);
+            promos[idx] = {
+              ...promos[idx],
+              'booked': (currentBooked - 1).clamp(0, 999),
+              'attended': currentAttended + 1,
+            };
+          }
+        }
+
+        // Stamp the booking so we never process it again.
+        tx.update(bookingDoc.reference, {'attendanceRecorded': true});
+      }
+
+      // ── Step 2: archive promotions that are expired AND fully used up ─────
+      //
+      // "Fully used up" means attended + booked >= totalSessions.
+      // Expired-but-partially-used promotions stay visible (greyed out) so
+      // the user can see their unused sessions.
+      final now = DateTime.now();
+      final List<Map<String, dynamic>> activePromos = [];
+      final List<Map<String, dynamic>> toArchive = [];
+
+      for (final p in promos) {
+        final expiresAt = (p['expiresAt'] as Timestamp).toDate();
+        final total = (p['totalSessions'] as int? ?? 0);
+        final attended = (p['attended'] as int? ?? 0);
+        final booked = (p['booked'] as int? ?? 0);
+        final isExpired = now.isAfter(expiresAt);
+        final isExhausted = (attended + booked) >= total;
+
+        if (isExpired && isExhausted) {
+          toArchive.add(p);
+        } else {
+          activePromos.add(p);
+        }
+      }
+
+      final List<dynamic> existingHistory =
+          (userData['promotionHistory'] as List? ?? [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+
+      final updates = <String, dynamic>{'promotions': activePromos};
+      if (toArchive.isNotEmpty) {
+        updates['promotionHistory'] = [...existingHistory, ...toArchive];
+      }
+
+      tx.update(userRef, updates);
+    });
+  }
+
+  // ── Assign promotion ───────────────────────────────────────────────────────
+
   Future<void> assignPromotionFromPackage({
     required String userId,
     required Package package,

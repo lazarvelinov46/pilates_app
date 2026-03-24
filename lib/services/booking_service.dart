@@ -102,8 +102,10 @@ class BookingService {
           'status': 'active',
           'reminderSent': false,
           'isTrialBooking': true,
+          'attendanceRecorded': false,   // ← add this
           // No promotionCreatedAt — linked when promotion is assigned.
         });
+
         tx.update(sessionRef, {'bookedCount': bookedCount + 1});
         tx.update(userRef, {'trialSessionUsed': true});
         return;
@@ -124,6 +126,7 @@ class BookingService {
         'status': 'active',
         'reminderSent': false,
         'isTrialBooking': false,
+        'attendanceRecorded': false,   // ← add this
         if (promoCreatedAt != null) 'promotionCreatedAt': promoCreatedAt,
       });
 
