@@ -44,6 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _loadingQuickBook = true);
 
+    // Sync attended counts before fetching display data so the UI
+    // immediately reflects the corrected promotion state.
+    await _userService.syncAttendedSessions(userId);
+
     final results = await Future.wait([
       _sessionService.getUpcomingSessions(limit: 3),
       _bookingService.getUserActiveBookings(userId),
