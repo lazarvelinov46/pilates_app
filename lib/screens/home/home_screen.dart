@@ -330,9 +330,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return Column(
         children: activePromos.map((promo) {
           final promoMs = promo.createdAt.millisecondsSinceEpoch;
-          final hasCompletedForThisPromo = _completedBookings.any((b) =>
-              b.promotionCreatedAt != null &&
-              b.promotionCreatedAt!.millisecondsSinceEpoch == promoMs);
+          final hasCompletedForThisPromo =
+              promo.attended > 0 ||
+              _completedBookings.any((b) =>
+                  b.promotionCreatedAt != null &&
+                  b.promotionCreatedAt!.millisecondsSinceEpoch == promoMs);
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
