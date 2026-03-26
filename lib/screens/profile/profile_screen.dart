@@ -7,6 +7,7 @@ import '../../models/promotion_model.dart';
 import '../../models/user_preferences_model.dart';
 import '../../services/user_service.dart';
 import '../../services/auth_service.dart';
+import '../login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -217,7 +218,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────────
-  Future<void> _logout() async {
+  // ── Logout ─────────────────────────────────────────────────────────────────
+Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -235,8 +237,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+
     if (confirmed == true) {
       await _authService.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(authService: _authService),
+        ),
+        (_) => false,
+      );
     }
   }
 
