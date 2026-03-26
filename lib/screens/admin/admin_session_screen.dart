@@ -126,11 +126,28 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                 if (!formKey.currentState!.validate() ||
                     startDT == null ||
                     endDT == null) return;
-                await _service.createSession(
-                    startsAt: startDT!,
-                    endsAt: endDT!,
-                    capacity: int.parse(capCtrl.text));
-                if (ctx.mounted) Navigator.pop(ctx);
+                if (!endDT!.isAfter(startDT!)) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('End time must be after start time.')),
+                  );
+                  return;
+                }
+                try {
+                  await _service.createSession(
+                      startsAt: startDT!,
+                      endsAt: endDT!,
+                      capacity: int.parse(capCtrl.text));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString().replaceFirst('Exception: ', '')),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               child: const Text('Create'),
             ),
