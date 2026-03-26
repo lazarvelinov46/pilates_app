@@ -98,6 +98,28 @@ class SessionService {
     required DateTime endsAt,
     required int capacity,
   }) async {
+    // Fetch all active sessions on the same day and check for overlap.
+    final startOfDay = DateTime(startsAt.year, startsAt.month, startsAt.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snap = await _db
+        .collection('sessions')
+        .where('active', isEqualTo: true)
+        .where('startsAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('startsAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    final hasOverlap = snap.docs.any((doc) {
+      final existingStart = (doc['startsAt'] as Timestamp).toDate();
+      final existingEnd = (doc['endsAt'] as Timestamp).toDate();
+      // Two intervals [a,b) and [c,d) overlap when a < d && c < b.
+      return startsAt.isBefore(existingEnd) && existingStart.isBefore(endsAt);
+    });
+
+    if (hasOverlap) {
+      throw Exception('This time slot overlaps with an existing session.');
+    }
+
     await _db.collection('sessions').add({
       'startsAt': Timestamp.fromDate(startsAt),
       'endsAt': Timestamp.fromDate(endsAt),
