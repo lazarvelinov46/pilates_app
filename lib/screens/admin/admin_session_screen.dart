@@ -413,57 +413,92 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     final s = todaysSessions[i];
                     final isPast = s.startsAt.isBefore(DateTime.now());
                     final hasBookings = s.bookedCount > 0;
+                    final cs = Theme.of(context).colorScheme;
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: s.active
-                            ? Colors.green.shade100
-                            : Colors.grey.shade200,
-                        child: Text(DateFormat.Hm().format(s.startsAt),
-                            style: const TextStyle(fontSize: 11)),
-                      ),
-                      title: Text(
-                          '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}'),
-                      subtitle: Row(
-                        children: [
-                          Text('Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}'),
-                          if (hasBookings) ...[
-                            const SizedBox(width: 6),
-                            Icon(
-                              Icons.group,
-                              size: 13,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ],
-                        ],
-                      ),
-                      // Tap → attendees list (available whenever there are bookings,
-                      // regardless of whether the session is past, active, or future)
+                    Widget trailingWidget;
+                    if (!s.active) {
+                      trailingWidget = Chip(
+                        label: const Text('Inactive'),
+                        backgroundColor: Colors.grey.shade200,
+                        labelStyle: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      );
+                    } else if (isPast) {
+                      trailingWidget = Chip(
+                        label: const Text('Completed'),
+                        backgroundColor: Colors.black12,
+                        labelStyle: const TextStyle(fontSize: 12),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      );
+                    } else {
+                      trailingWidget = IconButton(
+                        icon: const Icon(Icons.block, color: Colors.red),
+                        tooltip: 'Cancel session',
+                        onPressed: () => _confirmDeactivate(context, s),
+                      );
+                    }
+
+                    return InkWell(
                       onTap: hasBookings
                           ? () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      AdminSessionAttendeesScreen(session: s),
+                                  builder: (_) => AdminSessionAttendeesScreen(session: s),
                                 ),
                               )
                           : null,
-                      trailing: !s.active
-                          ? const Chip(
-                              label: Text('Inactive'),
-                              backgroundColor: Colors.black12)
-                          : isPast
-                              ? const Chip(
-                                  label: Text('Completed'),
-                                  backgroundColor: Colors.black12,
-                                )
-                              : IconButton(
-                                  icon: const Icon(Icons.cancel_outlined,
-                                      color: Colors.red),
-                                  tooltip: 'Cancel session',
-                                  onPressed: () =>
-                                      _confirmDeactivate(context, s),
-                                ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: Row(
+                          children: [
+                            // ── Leading avatar ─────────────────────────────────────
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor:
+                                  s.active ? Colors.green.shade100 : Colors.grey.shade200,
+                              child: Text(
+                                DateFormat.Hm().format(s.startsAt),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            // ── Title + subtitle ───────────────────────────────────
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}',
+                                    style: const TextStyle(
+                                        fontSize: 15, fontWeight: FontWeight.w500),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}',
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                      ),
+                                      if (hasBookings) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(Icons.group,
+                                            size: 13, color: cs.primary),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // ── Trailing — never constrained ──────────────────────
+                            const SizedBox(width: 8),
+                            trailingWidget,
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
