@@ -177,22 +177,34 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
       ),
     );
     if (confirmed != true) return;
+    int skipped = 0;
     for (int d = 0; d < 5; d++) {
       final day = monday.add(Duration(days: d));
       for (int h = 9; h < 13; h++) {
         final s = DateTime(day.year, day.month, day.day, h);
-        await _service.createSession(
-            startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        try {
+          await _service.createSession(
+              startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        } catch (_) {
+          skipped++;
+        }
       }
       for (int h = 17; h < 21; h++) {
         final s = DateTime(day.year, day.month, day.day, h);
-        await _service.createSession(
-            startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        try {
+          await _service.createSession(
+              startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+        } catch (_) {
+          skipped++;
+        }
       }
     }
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Default week sessions created!')));
+      final msg = skipped == 0
+          ? 'Default week sessions created!'
+          : 'Done — $skipped slot${skipped == 1 ? '' : 's'} skipped (already exist).';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
