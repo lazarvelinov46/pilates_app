@@ -64,23 +64,67 @@ export const onSessionCancelled = onDocumentUpdated(
         }
 
         // ── Normal refund path (also covers absorbed trial bookings) ──────
-        if (Array.isArray(userData.promotions) && promoCreatedAtTs) {
-          const promotions = (
-            userData.promotions as Record<string, unknown>[]
-          ).map((p) => ({...p}));
-
+        if (promoCreatedAtTs) {
           const targetMs = promoCreatedAtTs.toMillis();
-          const idx = promotions.findIndex(
-            (p) =>
-              p.createdAt instanceof admin.firestore.Timestamp &&
-              (p.createdAt as admin.firestore.Timestamp).toMillis() ===
-                targetMs
-          );
 
-          if (idx !== -1) {
-            const current = (promotions[idx].booked as number) ?? 0;
-            promotions[idx].booked = Math.max(0, current - 1);
-            tx.update(userRef, {promotions});
+          // First, try to find the promotion in the active promotions array.
+          if (Array.isArray(userData.promotions)) {
+            const promotions = (
+              userData.promotions as Record<string, unknown>[]
+            ).map((p) => ({...p}));
+
+            const idx = promotions.findIndex(
+              (p) =>
+                p.createdAt instanceof admin.firestore.Timestamp &&
+                (p.createdAt as admin.firestore.Timestamp).toMillis() ===
+                  targetMs
+            );
+
+            if (idx !== -1) {
+              const current = (promotions[idx].booked as number) ?? 0;
+              promotions[idx].booked = Math.max(0, current - 1);
+              tx.update(userRef, {promotions});
+              return;
+            }
+          }
+
+          // Promotion not found in active list — it may have been archived to
+          // promotionHistory (happens when a promotion is expired AND fully
+          // booked/attended at the time syncAttendedSessions runs, even if a
+          // future session is still booked). Move it back and refund.
+          if (Array.isArray(userData.promotionHistory)) {
+            const history = (
+              userData.promotionHistory as Record<string, unknown>[]
+            ).map((p) => ({...p}));
+
+            const idx = history.findIndex(
+              (p) =>
+                p.createdAt instanceof admin.firestore.Timestamp &&
+                (p.createdAt as admin.firestore.Timestamp).toMillis() ===
+                  targetMs
+            );
+
+            if (idx !== -1) {
+              const current = (history[idx].booked as number) ?? 0;
+              const restored = {
+                ...history[idx],
+                booked: Math.max(0, current - 1),
+              };
+              history.splice(idx, 1);
+
+              const activePromotions = Array.isArray(userData.promotions)
+                ? (
+                    userData.promotions as Record<string, unknown>[]
+                  ).map((p) => ({...p}))
+                : [];
+              activePromotions.push(restored);
+
+              tx.update(userRef, {
+                promotions: activePromotions,
+                promotionHistory: history,
+              });
+              return;
+            }
           }
         } else if (userData.promotion && !isTrialBooking) {
           // Legacy single-field path.

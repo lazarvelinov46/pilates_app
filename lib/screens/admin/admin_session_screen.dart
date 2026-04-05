@@ -245,8 +245,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     Expanded(
                       child: Text(
                         '$bookedCount user${bookedCount == 1 ? '' : 's'} '
-                        'will be notified and their session credit will be '
-                        'automatically refunded.',
+                        'will have their session credit automatically refunded.',
                         style: TextStyle(
                             color: Colors.orange.shade800, fontSize: 13),
                       ),
@@ -275,13 +274,13 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
 
     if (confirmed != true || !context.mounted) return;
 
-    await _service.deactivateSession(session.id);
+    await _service.cancelSessionByAdmin(session.id);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(hasBookings
-              ? 'Session cancelled. ${session.bookedCount} user${session.bookedCount == 1 ? '' : 's'} will be notified.'
+              ? 'Session cancelled. ${session.bookedCount} credit${session.bookedCount == 1 ? '' : 's'} refunded.'
               : 'Session cancelled.'),
         ),
       );

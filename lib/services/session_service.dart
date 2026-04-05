@@ -147,6 +147,114 @@ class SessionService {
     });
   }
 
+  /// Cancels a session as admin: marks every active booking as
+  /// cancelled_by_admin, refunds the credit back to the correct promotion
+  /// (checking both active promotions and promotionHistory), then deactivates
+  /// the session. Runs entirely client-side — no Cloud Function needed.
+  Future<void> cancelSessionByAdmin(String sessionId) async {
+    final bookingsSnap = await _db
+        .collection('bookings')
+        .where('sessionId', isEqualTo: sessionId)
+        .where('status', isEqualTo: 'active')
+        .get();
+
+    for (final bookingDoc in bookingsSnap.docs) {
+      final bookingData = bookingDoc.data();
+      final userId = bookingData['userId'] as String;
+      final userRef = _db.collection('users').doc(userId);
+      final isTrialBooking = bookingData['isTrialBooking'] == true;
+      final promoCreatedAt = bookingData['promotionCreatedAt'] as Timestamp?;
+
+      await _db.runTransaction((tx) async {
+        final userSnap = await tx.get(userRef);
+        if (!userSnap.exists) return;
+
+        final userData = userSnap.data()!;
+
+        tx.update(bookingDoc.reference, {
+          'status': 'cancelled_by_admin',
+          'cancelledAt': Timestamp.fromDate(DateTime.now()),
+          'cancelledByAdmin': true,
+        });
+
+        // Trial booking not yet absorbed by a promotion.
+        if (isTrialBooking && promoCreatedAt == null) {
+          tx.update(userRef, {'trialSessionUsed': false});
+          return;
+        }
+
+        if (promoCreatedAt != null) {
+          final targetMs = promoCreatedAt.millisecondsSinceEpoch;
+
+          // First look in the active promotions array.
+          if (userData['promotions'] != null) {
+            final promos = (userData['promotions'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+
+            final idx = promos.indexWhere((p) =>
+                p['createdAt'] is Timestamp &&
+                (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
+                    targetMs);
+
+            if (idx != -1) {
+              final current = (promos[idx]['booked'] as int? ?? 0);
+              promos[idx] = {
+                ...promos[idx],
+                'booked': (current - 1).clamp(0, 999),
+              };
+              tx.update(userRef, {'promotions': promos});
+              return;
+            }
+          }
+
+          // Not in active promotions — check promotionHistory (can happen when
+          // a promotion is expired & fully booked/attended, so it gets archived
+          // by syncAttendedSessions even while a future session is still booked).
+          if (userData['promotionHistory'] != null) {
+            final history = (userData['promotionHistory'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+
+            final idx = history.indexWhere((p) =>
+                p['createdAt'] is Timestamp &&
+                (p['createdAt'] as Timestamp).millisecondsSinceEpoch ==
+                    targetMs);
+
+            if (idx != -1) {
+              final current = (history[idx]['booked'] as int? ?? 0);
+              final restored = {
+                ...history[idx],
+                'booked': (current - 1).clamp(0, 999),
+              };
+              history.removeAt(idx);
+
+              final activePromos = userData['promotions'] != null
+                  ? (userData['promotions'] as List)
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList()
+                  : <Map<String, dynamic>>[];
+              activePromos.add(restored);
+
+              tx.update(userRef, {
+                'promotions': activePromos,
+                'promotionHistory': history,
+              });
+              return;
+            }
+          }
+        } else if (userData['promotion'] != null && !isTrialBooking) {
+          // Legacy single-field path.
+          tx.update(userRef, {
+            'promotion.booked': FieldValue.increment(-1),
+          });
+        }
+      });
+    }
+
+    await _db.collection('sessions').doc(sessionId).update({'active': false});
+  }
+
   Future<Set<DateTime>> getAvailableSessionDates() async {
     final now = DateTime.now();
     final end = now.add(const Duration(days: 365));
