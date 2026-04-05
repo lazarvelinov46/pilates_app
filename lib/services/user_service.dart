@@ -48,7 +48,11 @@ class UserService {
   //   • decrements `booked` in the matching promotion
   //   • increments `attended` in the matching promotion
   //   • stamps `attendanceRecorded: true` on the booking (idempotency guard)
-  //   • archives promotions that are both expired AND fully exhausted
+  //   • archives promotions that are fully attended OR expired with no pending bookings
+  //
+  // Edge case: expired promotion with booked-but-not-yet-attended sessions stays
+  // in promotions[] (shown with "Expired" badge) until those sessions are attended,
+  // then it archives. This way the user can still see their pending sessions.
   //
   // Comparing against sessionStartsAt is intentional: once a session begins
   // the slot is consumed whether the user physically attended or not.
@@ -117,11 +121,12 @@ class UserService {
         tx.update(bookingDoc.reference, {'attendanceRecorded': true});
       }
 
-      // ── Step 2: archive promotions that are expired AND fully used up ─────
+      // ── Step 2: archive promotions that are done ──────────────────────────
       //
-      // "Fully used up" means attended + booked >= totalSessions.
-      // Expired-but-partially-used promotions stay visible (greyed out) so
-      // the user can see their unused sessions.
+      // Archive when fully attended (attended >= total) regardless of expiry,
+      // OR when expired with no pending booked sessions (booked == 0).
+      // Expired promotions with still-booked sessions stay visible so the user
+      // can track those pending sessions; they archive once all are attended.
       final now = DateTime.now();
       final List<Map<String, dynamic>> activePromos = [];
       final List<Map<String, dynamic>> toArchive = [];
@@ -132,9 +137,10 @@ class UserService {
         final attended = (p['attended'] as int? ?? 0);
         final booked = (p['booked'] as int? ?? 0);
         final isExpired = now.isAfter(expiresAt);
-        final isExhausted = (attended + booked) >= total;
+        final isFullyAttended = attended >= total;
+        final isExpiredNoPending = isExpired && booked == 0;
 
-        if (isExpired && isExhausted) {
+        if (isFullyAttended || isExpiredNoPending) {
           toArchive.add(p);
         } else {
           activePromos.add(p);
