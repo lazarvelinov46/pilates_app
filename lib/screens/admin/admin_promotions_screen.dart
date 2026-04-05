@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/package_model.dart';
 import '../../services/package_service.dart';
 import '../../services/user_service.dart';
+import '../../theme.dart';
 
 class AdminPromotionsScreen extends StatefulWidget {
   const AdminPromotionsScreen({super.key});
@@ -48,7 +49,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
           content: Form(
             key: formKey,
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(user['email'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(user['email'], style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.5), fontSize: 12)),
               const SizedBox(height: 16),
               const Text('Package', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -76,7 +77,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
                 },
               ),
               if (expiresAt == null)
-                const Padding(padding: EdgeInsets.only(top: 4), child: Text('Expiry date required', style: TextStyle(color: Colors.red, fontSize: 12))),
+                Padding(padding: const EdgeInsets.only(top: 4), child: Text('Expiry date required', style: TextStyle(color: AppTheme.errorRed, fontSize: 12))),
             ]),
           ),
           actions: [
@@ -119,12 +120,12 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
         ),
         if (_searching) const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())
         else if (_searchController.text.isNotEmpty && _searchResults.isEmpty)
-          const Padding(padding: EdgeInsets.all(24), child: Text('No users found.', style: TextStyle(color: Colors.grey)))
+          Padding(padding: const EdgeInsets.all(24), child: Text('No users found.', style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.45))))
         else Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _searchResults.length,
-            separatorBuilder: (_, __) => const Divider(),
+            separatorBuilder: (context, i) => const Divider(),
             itemBuilder: (context, i) {
               final user = _searchResults[i];
               return ListTile(

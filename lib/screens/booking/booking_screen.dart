@@ -9,6 +9,7 @@ import '../../services/user_service.dart';
 import '../../services/session_service.dart';
 import '../../services/booking_service.dart';
 import '../../services/notification_service.dart';
+import '../../theme.dart';
 
 import 'widgets/date_selector.dart';
 import 'widgets/session_card.dart';
@@ -28,28 +29,12 @@ class _BookingScreenState extends State<BookingScreen> {
 
   DateTime selectedDate = DateTime.now();
   final String userId = FirebaseAuth.instance.currentUser!.uid;
-  
-  // Add to _BookingScreenState fields:
+
   late Stream<AppUser> _userStream;
-
-  // In initState, add:
-
-  // ── Real-time streams ─────────────────────────────────────────────────────
-
-  // Sessions for the currently selected date — rebuilt when date changes.
   late Stream<List<Session>> _sessionsStream;
-
-  // All session IDs the user currently has an active booking for.
   late Stream<Set<String>> _activeBookingsStream;
 
-  // ── Local optimistic state ────────────────────────────────────────────────
-
-  // Tracks sessions the user cancelled during this session so we can show
-  // the "Cancelled" state immediately without waiting for Firestore to
-  // propagate the removal from _activeBookingsStream.
   final Set<String> _cancelledSessionIds = {};
-
-  // ── Other state ───────────────────────────────────────────────────────────
 
   Set<DateTime> _availableDates = {};
   bool _calendarVisible = true;
@@ -85,9 +70,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void _onDateChanged(DateTime date) {
     setState(() {
       selectedDate = date;
-      // Rebuild the sessions stream for the new date.
       _sessionsStream = _sessionService.streamSessionsForDate(date);
-      // Clear local cancelled state — it's per-day context.
       _cancelledSessionIds.clear();
     });
     if (_scrollController.hasClients) {
@@ -108,11 +91,8 @@ class _BookingScreenState extends State<BookingScreen> {
         sessionId: session.id,
       );
 
-      // Remove from cancelled set in case the user is re-booking after cancel.
-      // (Only relevant if re-book support is enabled in SessionCard.)
       setState(() => _cancelledSessionIds.remove(session.id));
 
-      // Send immediate confirmation notification + schedule reminders.
       await _notificationService.notifyBookingConfirmed(session);
       await _notificationService.scheduleSessionReminders(session);
 
@@ -123,7 +103,7 @@ class _BookingScreenState extends State<BookingScreen> {
               'Session booked for '
               '${DateFormat('EEE dd MMM • HH:mm').format(session.startsAt)}',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.successGreen,
           ),
         );
       }
@@ -133,7 +113,7 @@ class _BookingScreenState extends State<BookingScreen> {
           SnackBar(
             content: Text(
                 'Booking failed: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
@@ -162,7 +142,7 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Yes, cancel'),
           ),
         ],
@@ -174,10 +154,8 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       await _bookingService.cancelBooking(booking: booking);
 
-      // Mark locally as cancelled so the card updates immediately.
       setState(() => _cancelledSessionIds.add(session.id));
 
-      // Cancel the pending 24h and 1h reminders for this session.
       await _notificationService.cancelSessionReminders(session.id);
 
       if (mounted) {
@@ -191,7 +169,7 @@ class _BookingScreenState extends State<BookingScreen> {
           SnackBar(
             content: Text(
                 'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
@@ -234,22 +212,22 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
+                          horizontal: 16, vertical: 10),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16),
+                          const Icon(Icons.calendar_today,
+                              size: 15, color: AppTheme.primary),
                           const SizedBox(width: 8),
                           Text(
                             DateFormat('EEEE, dd MMMM yyyy')
                                 .format(selectedDate),
                             style: const TextStyle(
-                                fontWeight: FontWeight.w500),
+                                fontWeight: FontWeight.w500, fontSize: 14),
                           ),
                           const Spacer(),
-                          const Icon(Icons.expand_more, size: 16),
+                          const Icon(Icons.expand_more,
+                              size: 16, color: AppTheme.primary),
                         ],
                       ),
                     ),
@@ -264,11 +242,9 @@ class _BookingScreenState extends State<BookingScreen> {
                 final user = userSnap.data;
                 return Column(
                   children: [
-                    // Trial status banner
                     if (user != null && !user.hasActivePromotion)
-                      _TrialStatusBanner(trialSessionUsed: user.trialSessionUsed),
-
-                    // Sessions list
+                      _TrialStatusBanner(
+                          trialSessionUsed: user.trialSessionUsed),
                     Expanded(
                       child: StreamBuilder<Set<String>>(
                         stream: _activeBookingsStream,
@@ -291,14 +267,17 @@ class _BookingScreenState extends State<BookingScreen> {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.event_busy,
-                                          size: 48, color: Colors.grey),
+                                      Icon(Icons.event_busy,
+                                          size: 48,
+                                          color: AppTheme.textColor
+                                              .withValues(alpha: 0.3)),
                                       const SizedBox(height: 12),
                                       Text(
                                         'No sessions on '
                                         '${DateFormat('dd MMM').format(selectedDate)}',
-                                        style:
-                                            const TextStyle(color: Colors.grey),
+                                        style: TextStyle(
+                                            color: AppTheme.textColor
+                                                .withValues(alpha: 0.5)),
                                       ),
                                     ],
                                   ),
@@ -313,12 +292,14 @@ class _BookingScreenState extends State<BookingScreen> {
                                 itemBuilder: (context, index) {
                                   final session = sessions[index];
                                   final isCancelled =
-                                      _cancelledSessionIds.contains(session.id);
+                                      _cancelledSessionIds
+                                          .contains(session.id);
                                   final alreadyBooked =
                                       activeBookingIds.contains(session.id);
                                   return SessionCard(
                                     session: session,
-                                    alreadyBooked: alreadyBooked && !isCancelled,
+                                    alreadyBooked:
+                                        alreadyBooked && !isCancelled,
                                     isCancelled: isCancelled,
                                     onBook: () => _confirmBooking(session),
                                   );
@@ -350,7 +331,7 @@ class _TrialStatusBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: cs.secondaryContainer.withOpacity(0.45),
+      color: cs.secondaryContainer.withValues(alpha: 0.45),
       child: Row(
         children: [
           Icon(
@@ -367,7 +348,7 @@ class _TrialStatusBanner extends StatelessWidget {
                   ? 'Trial session booked — purchase a package to continue.'
                   : 'No active promotion. You can book 1 free trial session.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurface.withOpacity(0.8),
+                    color: AppTheme.textColor.withValues(alpha: 0.8),
                   ),
             ),
           ),

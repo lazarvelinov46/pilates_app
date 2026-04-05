@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/package_model.dart';
 import '../../services/package_service.dart';
+import '../../theme.dart';
 
 class AdminPackagesScreen extends StatelessWidget {
   const AdminPackagesScreen({super.key});
@@ -20,7 +21,7 @@ class AdminPackagesScreen extends StatelessWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: packages.length,
-                      separatorBuilder: (_, __) => const Divider(),
+                      separatorBuilder: (context, i) => const Divider(),
                       itemBuilder: (context, i) {
                         final pkg = packages[i];
                         return ListTile(
@@ -31,7 +32,7 @@ class AdminPackagesScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => _showDialog(context, service, pkg)),
-                              IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _confirmDelete(context, service, pkg)),
+                              IconButton(icon: Icon(Icons.delete_outline, color: AppTheme.errorRed), onPressed: () => _confirmDelete(context, service, pkg)),
                             ],
                           ),
                         );
@@ -90,7 +91,7 @@ class AdminPackagesScreen extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
             onPressed: () async {
               await service.deletePackage(pkg.id);
               if (context.mounted) Navigator.pop(context);

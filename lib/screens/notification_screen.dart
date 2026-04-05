@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
+import '../theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -27,40 +28,79 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-      ),
+      appBar: AppBar(title: const Text('Notifications')),
       body: _notifications.isEmpty
-          ? const Center(child: Text('No notifications'))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notifications_none_outlined,
+                      size: 48,
+                      color: AppTheme.textColor.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No notifications',
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.45)),
+                  ),
+                ],
+              ),
+            )
           : ListView.separated(
               itemCount: _notifications.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (context, i) =>
+                  const Divider(height: 1, indent: 16, endIndent: 16),
               itemBuilder: (context, index) {
                 final n = _notifications[index];
+                final isUnread = !n.isRead;
 
                 return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 4),
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isUnread
+                          ? AppTheme.secondary
+                          : AppTheme.surfaceContainerHigh,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      size: 20,
+                      color: isUnread
+                          ? AppTheme.primary
+                          : AppTheme.textColor.withValues(alpha: 0.4),
+                    ),
+                  ),
                   title: Text(
                     n.title,
                     style: TextStyle(
                       fontWeight:
-                          n.isRead ? FontWeight.normal : FontWeight.bold,
+                          isUnread ? FontWeight.w600 : FontWeight.normal,
+                      color: AppTheme.textColor,
                     ),
                   ),
-                  subtitle: Text(n.message),
+                  subtitle: Text(
+                    n.message,
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.6),
+                        fontSize: 13),
+                  ),
                   trailing: Text(
                     _formatTime(n.createdAt),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   onTap: () {
                     setState(() {
-                      _notifications[index] =
-                          AppNotification(
-                            id: n.id,
-                            title: n.title,
-                            message: n.message,
-                            createdAt: n.createdAt,
-                            isRead: true,
-                          );
+                      _notifications[index] = AppNotification(
+                        id: n.id,
+                        title: n.title,
+                        message: n.message,
+                        createdAt: n.createdAt,
+                        isRead: true,
+                      );
                     });
                   },
                 );

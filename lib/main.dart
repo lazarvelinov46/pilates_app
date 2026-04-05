@@ -8,6 +8,7 @@ import 'screens/main_shell.dart';
 import 'models/user_model.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/verification_screen.dart';
+import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,8 +28,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: AuthGate(),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      home: const AuthGate(),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../../../services/booking_service.dart';
 import '../../../services/session_service.dart';
 import '../../../services/user_service.dart';
 import '../../../services/rating_service.dart';
+import '../../../theme.dart';
 import '../booking/widgets/session_card.dart';
 import 'widgets/completed_sessions_sheet.dart';
 
@@ -44,8 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _loadingQuickBook = true);
 
-    // Sync attended counts before fetching display data so the UI
-    // immediately reflects the corrected promotion state.
     await _userService.syncAttendedSessions(userId);
 
     final results = await Future.wait([
@@ -86,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Yes, cancel'),
           ),
         ],
@@ -108,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text(
                 'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
@@ -128,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text(
               'Booked for ${DateFormat('EEE dd MMM • HH:mm').format(session.startsAt)}',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.successGreen,
           ),
         );
       }
@@ -139,18 +138,14 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text(
                 'Booking failed: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
     }
   }
 
-  // ── Open completed sessions sheet ─────────────────────────────────────────
-
   void _openCompletedSessionsSheet(BuildContext context, AppUser user, Promotion promotion) {
-    // Filter to only bookings that belong to this promotion.
-    // Legacy bookings (no promotionCreatedAt) are shown under the oldest promotion.
     final promoMs = promotion.createdAt.millisecondsSinceEpoch;
     final isLegacyPromo = promotion.createdAt == DateTime(2000);
 
@@ -158,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (b.promotionCreatedAt != null) {
         return b.promotionCreatedAt!.millisecondsSinceEpoch == promoMs;
       }
-      // Legacy booking (no promotionCreatedAt) — show only under the legacy promo.
       return isLegacyPromo;
     }).toList();
 
@@ -171,8 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Rate from last-session card ───────────────────────────────────────────
-
   Future<void> _openRateDialogForBooking(
       BuildContext context, Booking booking, AppUser user) async {
     final rating = await showRateSessionDialog(
@@ -182,8 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (rating != null) _onRatingSubmitted(rating);
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -209,11 +199,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   final activeBookings    = activeSnap.data ?? [];
                   final cancelledBookings = cancelledSnap.data ?? [];
 
-                  // Merge and sort chronologically
                   final upcomingBookings = [...activeBookings, ...cancelledBookings]
                     ..sort((a, b) => a.sessionStartsAt.compareTo(b.sessionStartsAt));
 
                   return RefreshIndicator(
+                    color: AppTheme.primary,
                     onRefresh: _loadData,
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -227,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 24),
 
-                        // ── Body: upcoming / no-promo / quick-book ─────────────────
                         if (upcomingBookings.isNotEmpty) ...[
                           Text(
                             'Your upcoming sessions',
@@ -248,7 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ] else if (!user.hasActivePromotion && user.trialSessionUsed) ...[
                           _buildNoPromotionBanner(context, user),
                         ] else ...[
-                          // Quick-book: shown for both regular users and trial-eligible users.
                           if (!user.hasActivePromotion) ...[
                             const _TrialBookingBanner(),
                             const SizedBox(height: 12),
@@ -266,8 +254,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               Chip(
                                 label: const Text('Upcoming sessions'),
                                 visualDensity: VisualDensity.compact,
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primaryContainer,
                               ),
                             ],
                           ),
@@ -276,8 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'You have no sessions booked yet.',
                             style: Theme.of(context)
                                 .textTheme
-                                .bodySmall
-                                ?.copyWith(color: Colors.grey),
+                                .bodySmall,
                           ),
                           const SizedBox(height: 12),
                           if (_loadingQuickBook)
@@ -313,8 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Promotion section ─────────────────────────────────────────────────────
 
-  // ── Promotion section ─────────────────────────────────────────────────────
-
   Widget _buildPromotionSection(BuildContext context, AppUser user) {
     final activePromos = user.sortedPromotions.where((p) => p.attended < p.totalSessions).toList();
 
@@ -325,7 +308,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final legacyHistory = user.promotionHistory;
 
-    // ── Active promotions ──────────────────────────────────────────────────
     if (activePromos.isNotEmpty) {
       return Column(
         children: activePromos.map((promo) {
@@ -351,12 +333,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // ── Trial session active (no promotion, trial slot consumed) ───────────
     if (user.trialSessionUsed) {
       return _TrialSessionCard();
     }
 
-    // ── Fallback: show last inactive/expired promotion ─────────────────────
     Promotion? fallback;
     if (inactivePromos.isNotEmpty) {
       fallback = inactivePromos.first;
@@ -373,7 +353,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // ── Completely new user: no promotions at all ──────────────────────────
     return _NoPromotionCard();
   }
 
@@ -395,10 +374,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final isInactive = isExpired || isExhausted || isHistory;
 
     final cardColor = isInactive
-        ? Colors.grey.shade200
+        ? AppTheme.surfaceContainerHigh
         : colorScheme.primaryContainer;
 
-    final barColor = isInactive ? Colors.grey : colorScheme.primary;
+    final barColor = isInactive
+        ? AppTheme.outline
+        : colorScheme.primary;
 
     Widget card = Container(
       decoration: BoxDecoration(
@@ -406,17 +387,17 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
         border: onTap != null
             ? Border.all(
-                color: colorScheme.primary.withOpacity(0.4),
+                color: colorScheme.primary.withValues(alpha: 0.35),
                 width: 1.5,
               )
-            : null,
+            : Border.all(color: AppTheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -434,15 +415,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               if (isHistory)
-                _StatusBadge(label: 'Completed', color: Colors.blueGrey)
+                _StatusBadge(
+                    label: 'Completed',
+                    color: AppTheme.historySlate,
+                    bgColor: AppTheme.historySlateContainer)
               else if (isExpired)
-                _StatusBadge(label: 'Expired', color: Colors.red)
+                _StatusBadge(
+                    label: 'Expired',
+                    color: AppTheme.errorRed,
+                    bgColor: AppTheme.errorRedContainer)
               else if (isExhausted)
-                _StatusBadge(label: 'Used up', color: Colors.orange)
+                _StatusBadge(
+                    label: 'Used up',
+                    color: AppTheme.warningOrange,
+                    bgColor: AppTheme.warningOrangeContainer)
               else
                 _StatusBadge(
                   label: '${promotion.remaining} left',
-                  color: Colors.green,
+                  color: AppTheme.successGreen,
+                  bgColor: AppTheme.successGreenContainer,
                 ),
             ],
           ),
@@ -451,8 +442,8 @@ class _HomeScreenState extends State<HomeScreen> {
             'Expires ${DateFormat('dd MMM yyyy').format(promotion.expiresAt)}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: (!isHistory && isExpired)
-                      ? Colors.red
-                      : Colors.grey.shade600,
+                      ? AppTheme.errorRed
+                      : AppTheme.textColor.withValues(alpha: 0.55),
                 ),
           ),
           const SizedBox(height: 14),
@@ -460,8 +451,8 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: fillPercent.clamp(0.0, 1.0),
-              minHeight: 8,
-              backgroundColor: Colors.black12,
+              minHeight: 7,
+              backgroundColor: AppTheme.outlineVariant,
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
@@ -479,7 +470,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: Colors.grey),
+                      ?.copyWith(
+                          color: AppTheme.textColor.withValues(alpha: 0.55)),
                 ),
             ],
           ),
@@ -500,9 +492,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Last completed session card ───────────────────────────────────────────
 
-  Widget _buildLastCompletedSessionCard(
-      BuildContext context, AppUser user) {
-    final last = _completedBookings.first; // sorted newest-first
+  Widget _buildLastCompletedSessionCard(BuildContext context, AppUser user) {
+    final last = _completedBookings.first;
     final existingRating = _ratingsMap[last.sessionId];
     final isRated = existingRating != null;
 
@@ -521,15 +512,13 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
           decoration: BoxDecoration(
             color: isRated
-                ? Colors.green.shade50
-                : Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest,
+                ? AppTheme.successGreenContainer
+                : Theme.of(context).colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isRated
-                  ? Colors.green.shade200
-                  : Colors.transparent,
+                  ? AppTheme.successGreen.withValues(alpha: 0.35)
+                  : AppTheme.outlineVariant,
             ),
           ),
           child: Row(
@@ -538,16 +527,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isRated
-                      ? Colors.green.shade100
-                      : Theme.of(context)
-                          .colorScheme
-                          .primaryContainer,
+                      ? AppTheme.successGreen.withValues(alpha: 0.15)
+                      : Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.fitness_center,
                   color: isRated
-                      ? Colors.green.shade700
+                      ? AppTheme.successGreen
                       : Theme.of(context).colorScheme.primary,
                   size: 20,
                 ),
@@ -566,7 +553,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       DateFormat('HH:mm').format(last.sessionStartsAt),
                       style: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade600),
+                          fontSize: 13,
+                          color: AppTheme.textColor.withValues(alpha: 0.55)),
                     ),
                     if (isRated) ...[
                       const SizedBox(height: 4),
@@ -580,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
+                    color: AppTheme.successGreen.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -588,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.green.shade700,
+                      color: AppTheme.successGreen,
                     ),
                   ),
                 )
@@ -614,9 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── No-promotion banner ───────────────────────────────────────────────────
 
   Widget _buildNoPromotionBanner(BuildContext context, AppUser user) {
-    final hasActive = user.hasActivePromotion;
-
-    if (hasActive) return const SizedBox.shrink();
+    if (user.hasActivePromotion) return const SizedBox.shrink();
 
     final msg = user.promotions.isNotEmpty
         ? user.promotions.any((p) => p.isExpired && p.remaining > 0)
@@ -637,23 +623,28 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: AppTheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.outlineVariant),
           ),
           padding: const EdgeInsets.all(24),
           child: Center(
             child: Column(
               children: [
-                const Icon(Icons.local_activity_outlined,
-                    size: 40, color: Colors.grey),
+                Icon(Icons.local_activity_outlined,
+                    size: 40,
+                    color: AppTheme.textColor.withValues(alpha: 0.35)),
                 const SizedBox(height: 12),
                 Text(msg,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey)),
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.55))),
                 const SizedBox(height: 4),
-                const Text('Contact us to get a new promotion.',
+                Text('Contact us to get a new promotion.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.4),
+                        fontSize: 12)),
               ],
             ),
           ),
@@ -670,15 +661,16 @@ class _NoPromotionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          const Icon(Icons.local_activity_outlined,
-              size: 36, color: Colors.grey),
+          Icon(Icons.local_activity_outlined,
+              size: 36,
+              color: AppTheme.textColor.withValues(alpha: 0.35)),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -686,10 +678,13 @@ class _NoPromotionCard extends StatelessWidget {
               children: [
                 Text('No active promotion',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold, color: Colors.grey)),
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textColor.withValues(alpha: 0.55))),
                 const SizedBox(height: 4),
-                const Text('Contact us to purchase a session package.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('Contact us to purchase a session package.',
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.5),
+                        fontSize: 13)),
               ],
             ),
           ),
@@ -705,9 +700,9 @@ class _TrialSessionCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: cs.secondaryContainer.withOpacity(0.5),
+        color: cs.secondaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.secondary.withOpacity(0.35)),
+        border: Border.all(color: cs.secondary.withValues(alpha: 0.35)),
       ),
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -715,7 +710,7 @@ class _TrialSessionCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: cs.secondary.withOpacity(0.15),
+              color: cs.secondary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.card_giftcard_outlined,
@@ -740,7 +735,8 @@ class _TrialSessionCard extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: cs.onSurface.withOpacity(0.65)),
+                      ?.copyWith(
+                          color: AppTheme.textColor.withValues(alpha: 0.65)),
                 ),
               ],
             ),
@@ -760,9 +756,9 @@ class _TrialBookingBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.secondaryContainer.withOpacity(0.4),
+        color: cs.secondaryContainer.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.secondary.withOpacity(0.3)),
+        border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -772,7 +768,7 @@ class _TrialBookingBanner extends StatelessWidget {
             child: Text(
               'No active promotion — you can book 1 free trial session.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurface.withOpacity(0.8),
+                    color: AppTheme.textColor.withValues(alpha: 0.8),
                   ),
             ),
           ),
@@ -785,23 +781,22 @@ class _TrialBookingBanner extends StatelessWidget {
 class _StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
-  const _StatusBadge({required this.label, required this.color});
+  final Color bgColor;
+  const _StatusBadge(
+      {required this.label, required this.color, required this.bgColor});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Text(
         label,
         style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600),
+            color: color, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -809,7 +804,7 @@ class _StatusBadge extends StatelessWidget {
 
 class _BookingTile extends StatelessWidget {
   final Booking booking;
-  final VoidCallback? onCancel; // null = not cancellable (locked or admin-cancelled)
+  final VoidCallback? onCancel;
 
   const _BookingTile({required this.booking, this.onCancel});
 
@@ -823,13 +818,13 @@ class _BookingTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isCancelledByAdmin
-            ? Colors.red.shade50
+            ? AppTheme.errorRedContainer.withValues(alpha: 0.5)
             : Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCancelledByAdmin
-              ? Colors.red.shade200
-              : Theme.of(context).colorScheme.outlineVariant,
+              ? AppTheme.errorRed.withValues(alpha: 0.25)
+              : AppTheme.outlineVariant,
         ),
       ),
       child: ListTile(
@@ -839,13 +834,15 @@ class _BookingTile extends StatelessWidget {
           isCancelledByAdmin
               ? Icons.cancel_outlined
               : Icons.fitness_center_rounded,
-          color: isCancelledByAdmin ? Colors.red.shade400 : null,
+          color: isCancelledByAdmin
+              ? AppTheme.errorRed
+              : AppTheme.primary,
         ),
         title: Text(
           booking.formattedDateTime,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: isCancelledByAdmin ? Colors.red.shade700 : null,
+            color: isCancelledByAdmin ? AppTheme.errorRed : null,
           ),
         ),
         subtitle: Text(
@@ -856,7 +853,9 @@ class _BookingTile extends StatelessWidget {
                   : 'Cancellation window passed',
           style: TextStyle(
             fontSize: 12,
-            color: isCancelledByAdmin ? Colors.red.shade400 : Colors.grey,
+            color: isCancelledByAdmin
+                ? AppTheme.errorRed.withValues(alpha: 0.7)
+                : AppTheme.textColor.withValues(alpha: 0.5),
           ),
         ),
         trailing: isCancelledByAdmin
@@ -864,13 +863,13 @@ class _BookingTile extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade100,
+                  color: AppTheme.errorRedContainer,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   'Cancelled',
                   style: TextStyle(
-                      color: Colors.red.shade700,
+                      color: AppTheme.errorRed,
                       fontSize: 12,
                       fontWeight: FontWeight.w600),
                 ),
@@ -878,11 +877,14 @@ class _BookingTile extends StatelessWidget {
             : canCancel
                 ? TextButton(
                     onPressed: onCancel,
-                    child: const Text('Cancel',
-                        style: TextStyle(color: Colors.red)),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.errorRed),
+                    child: const Text('Cancel'),
                   )
-                : const Text('Locked',
-                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                : Text('Locked',
+                    style: TextStyle(
+                        color: AppTheme.textColor.withValues(alpha: 0.4),
+                        fontSize: 13)),
       ),
     );
   }
@@ -896,13 +898,15 @@ class _EmptySessionsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outlineVariant),
       ),
-      child: const Center(
+      child: Center(
         child: Text(
           'No upcoming sessions available right now.',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(
+              color: AppTheme.textColor.withValues(alpha: 0.5)),
         ),
       ),
     );

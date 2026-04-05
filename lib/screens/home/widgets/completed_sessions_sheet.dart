@@ -5,6 +5,7 @@ import '../../../models/booking_model.dart';
 import '../../../models/rating_model.dart';
 import '../../../models/user_model.dart';
 import '../../../services/rating_service.dart';
+import '../../../theme.dart';
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
 
@@ -18,9 +19,6 @@ Future<void> showCompletedSessionsSheet({
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     builder: (_) => _CompletedSessionsSheet(
       completedBookings: completedBookings,
       initialRatingsMap: ratingsMap,
@@ -86,7 +84,7 @@ class _CompletedSessionsSheetState extends State<_CompletedSessionsSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: AppTheme.outlineVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -113,19 +111,20 @@ class _CompletedSessionsSheetState extends State<_CompletedSessionsSheet> {
           // List
           Expanded(
             child: widget.completedBookings.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No completed sessions yet.',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(
+                          color: AppTheme.textColor.withValues(alpha: 0.45)),
                     ),
                   )
                 : ListView.separated(
                     controller: scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                     itemCount: widget.completedBookings.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (context, i) =>
                         const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
+                    itemBuilder: (context, i) {
                       final booking = widget.completedBookings[i];
                       final existingRating =
                           _ratingsMap[booking.sessionId];
@@ -164,13 +163,13 @@ class _SessionHistoryTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isRated
-            ? Colors.green.shade50
-            : Theme.of(context).colorScheme.surfaceContainerHighest,
+            ? AppTheme.successGreenContainer
+            : Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isRated
-              ? Colors.green.shade200
-              : Colors.transparent,
+              ? AppTheme.successGreen.withValues(alpha: 0.3)
+              : AppTheme.outlineVariant,
         ),
       ),
       child: Row(
@@ -192,7 +191,7 @@ class _SessionHistoryTile extends StatelessWidget {
                 DateFormat('HH:mm').format(booking.sessionStartsAt),
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: AppTheme.textColor.withValues(alpha: 0.5),
                 ),
               ),
               if (isRated) ...[
@@ -204,7 +203,8 @@ class _SessionHistoryTile extends StatelessWidget {
                     child: Text(
                       existingRating!.comment,
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11,
+                          color: AppTheme.textColor.withValues(alpha: 0.5)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -219,7 +219,7 @@ class _SessionHistoryTile extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.shade100,
+                color: AppTheme.successGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -227,7 +227,7 @@ class _SessionHistoryTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green.shade700,
+                  color: AppTheme.successGreen,
                 ),
               ),
             )
@@ -308,14 +308,12 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
         sessionStartsAt: widget.booking.sessionStartsAt,
       );
 
-      // Return the newly created rating to the caller.
       final rating = SessionRating(
         id: '${widget.user.uid}_${widget.booking.sessionId}',
         sessionId: widget.booking.sessionId,
         bookingId: widget.booking.id,
         userId: widget.user.uid,
-        userName:
-            '${widget.user.name} ${widget.user.surname}'.trim(),
+        userName: '${widget.user.name} ${widget.user.surname}'.trim(),
         userEmail: widget.user.email,
         rating: _selectedStars,
         comment: _commentCtrl.text.trim(),
@@ -331,7 +329,7 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
           SnackBar(
             content: Text(
                 'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
@@ -349,7 +347,8 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
             DateFormat('EEEE, dd MMM yyyy • HH:mm')
                 .format(widget.booking.sessionStartsAt),
             style: TextStyle(
-                fontSize: 13, color: Colors.grey.shade600),
+                fontSize: 13,
+                color: AppTheme.textColor.withValues(alpha: 0.55)),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -378,7 +377,7 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
             style: TextStyle(
               fontSize: 13,
               color: _selectedStars == 0
-                  ? Colors.grey
+                  ? AppTheme.textColor.withValues(alpha: 0.4)
                   : Colors.amber.shade800,
               fontWeight: FontWeight.w500,
             ),
@@ -389,7 +388,6 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
             decoration: const InputDecoration(
               labelText: 'Comment (optional)',
               hintText: 'How was the session?',
-              border: OutlineInputBorder(),
             ),
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
@@ -418,47 +416,18 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
 
   String _starLabel(int stars) {
     switch (stars) {
-      case 1:
-        return 'Poor';
-      case 2:
-        return 'Fair';
-      case 3:
-        return 'Good';
-      case 4:
-        return 'Great';
-      case 5:
-        return 'Excellent!';
-      default:
-        return '';
+      case 1: return 'Poor';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Great';
+      case 5: return 'Excellent!';
+      default: return '';
     }
   }
 }
 
 // ─── Shared star-row widget ───────────────────────────────────────────────────
 
-class _StarRow extends StatelessWidget {
-  final int rating;
-  final double size;
-
-  const _StarRow({required this.rating, this.size = 16});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(
-        5,
-        (i) => Icon(
-          i < rating ? Icons.star : Icons.star_border,
-          color: Colors.amber,
-          size: size,
-        ),
-      ),
-    );
-  }
-}
-
-// Make _StarRow accessible from other files in the same package.
 class StarRow extends StatelessWidget {
   final int rating;
   final double size;

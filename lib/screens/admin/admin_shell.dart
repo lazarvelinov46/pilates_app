@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../login_screen.dart';
 import '../../services/auth_service.dart';
+import '../../theme.dart';
 import 'admin_packages_screen.dart';
 import 'admin_promotions_screen.dart';
 import 'admin_ratings_screen.dart';
@@ -35,8 +36,6 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
@@ -53,10 +52,6 @@ class _AdminShellState extends State<AdminShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: colorScheme.surface,
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurface.withOpacity(0.55),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2_outlined),

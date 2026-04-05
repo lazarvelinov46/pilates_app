@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/session_model.dart';
 import '../../services/session_service.dart';
+import '../../theme.dart';
 import 'admin_session_attendees_screen.dart';
 
 class AdminSessionsScreen extends StatelessWidget {
@@ -143,7 +144,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
                         content: Text(e.toString().replaceFirst('Exception: ', '')),
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppTheme.errorRed,
                       ),
                     );
                   }
@@ -232,22 +233,22 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: AppTheme.warningOrangeContainer,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
+                  border: Border.all(color: AppTheme.warningOrange.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.warning_amber_rounded,
-                        color: Colors.orange.shade700, size: 18),
+                        color: AppTheme.warningOrange, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '$bookedCount user${bookedCount == 1 ? '' : 's'} '
                         'will have their session credit automatically refunded.',
-                        style: TextStyle(
-                            color: Colors.orange.shade800, fontSize: 13),
+                        style: const TextStyle(
+                            color: AppTheme.warningOrange, fontSize: 13),
                       ),
                     ),
                   ],
@@ -263,7 +264,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Keep Session')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Cancel Session',
                 style: TextStyle(color: Colors.white)),
@@ -395,10 +396,10 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
               const Expanded(
                   child: Center(child: CircularProgressIndicator()))
             else if (todaysSessions.isEmpty)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text('No sessions on this date',
-                      style: TextStyle(color: Colors.grey)),
+                      style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.45))),
                 ),
               )
             else
@@ -407,7 +408,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                   itemCount: todaysSessions.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (context, i) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final s = todaysSessions[i];
                     final isPast = s.startsAt.isBefore(DateTime.now());
@@ -418,22 +419,22 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     if (!s.active) {
                       trailingWidget = Chip(
                         label: const Text('Inactive'),
-                        backgroundColor: Colors.grey.shade200,
-                        labelStyle: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                        backgroundColor: AppTheme.surfaceContainerHighest,
+                        labelStyle: TextStyle(fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                       );
                     } else if (isPast) {
                       trailingWidget = Chip(
                         label: const Text('Completed'),
-                        backgroundColor: Colors.black12,
-                        labelStyle: const TextStyle(fontSize: 12),
+                        backgroundColor: AppTheme.historySlateContainer,
+                        labelStyle: TextStyle(fontSize: 12, color: AppTheme.historySlate),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                       );
                     } else {
                       trailingWidget = IconButton(
-                        icon: const Icon(Icons.block, color: Colors.red),
+                        icon: const Icon(Icons.block, color: AppTheme.errorRed),
                         tooltip: 'Cancel session',
                         onPressed: () => _confirmDeactivate(context, s),
                       );
@@ -456,7 +457,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                             CircleAvatar(
                               radius: 22,
                               backgroundColor:
-                                  s.active ? Colors.green.shade100 : Colors.grey.shade200,
+                                  s.active ? AppTheme.successGreenContainer : AppTheme.surfaceContainerHighest,
                               child: Text(
                                 DateFormat.Hm().format(s.startsAt),
                                 style: const TextStyle(fontSize: 11),
@@ -557,9 +558,9 @@ class _AdminCalendarState extends State<_AdminCalendar> {
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).primaryColor
+                ? AppTheme.primary
                 : isToday
-                    ? Theme.of(context).primaryColor.withOpacity(0.15)
+                    ? AppTheme.secondary
                     : null,
             shape: BoxShape.circle,
           ),
@@ -580,7 +581,7 @@ class _AdminCalendarState extends State<_AdminCalendar> {
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
+                    color: AppTheme.primary,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -619,8 +620,8 @@ class _AdminCalendarState extends State<_AdminCalendar> {
           children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
               .map((d) => Center(
                   child: Text(d,
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.grey))))
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.textColor.withValues(alpha: 0.45)))))
               .toList(),
         ),
         GridView.count(

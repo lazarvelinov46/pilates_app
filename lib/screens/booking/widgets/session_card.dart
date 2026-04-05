@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/session_model.dart';
+import '../../../theme.dart';
 
 class SessionCard extends StatelessWidget {
   final Session session;
@@ -11,27 +12,18 @@ class SessionCard extends StatelessWidget {
 
   final VoidCallback onBook;
 
-  // ---------------------------------------------------------------------------
-  // Optional callback to allow re-booking a cancelled session.
-  // Uncomment [onBookAgain] and its usage below if you decide to let users
-  // re-book sessions they previously cancelled.
-  // ---------------------------------------------------------------------------
-  // final VoidCallback? onBookAgain;
-
   const SessionCard({
     super.key,
     required this.session,
     required this.alreadyBooked,
     required this.isCancelled,
     required this.onBook,
-    // this.onBookAgain,   // ← uncomment for re-book support
   });
 
   @override
   Widget build(BuildContext context) {
-    final double fillPercent =
-        session.bookedCount / session.capacity;
-
+    final colorScheme = Theme.of(context).colorScheme;
+    final double fillPercent = session.bookedCount / session.capacity;
     final bool isFull = session.bookedCount >= session.capacity;
 
     // Derive the button label and whether it is enabled.
@@ -43,14 +35,6 @@ class SessionCard extends StatelessWidget {
       buttonLabel = 'Cancelled';
       buttonEnabled = false;
       buttonAction = null;
-
-      // ---------------------------------------------------------------------------
-      // Re-book support: replace the three lines above with the block below.
-      // ---------------------------------------------------------------------------
-      // buttonLabel   = onBookAgain != null ? 'Book Again' : 'Cancelled';
-      // buttonEnabled = onBookAgain != null && !isFull;
-      // buttonAction  = (onBookAgain != null && !isFull) ? onBookAgain : null;
-      // ---------------------------------------------------------------------------
     } else if (alreadyBooked) {
       buttonLabel = 'Already Booked';
       buttonEnabled = false;
@@ -65,85 +49,176 @@ class SessionCard extends StatelessWidget {
       buttonAction = onBook;
     }
 
-    // Card accent colour reflects state.
-    Color? cardColor;
-    if (isCancelled) cardColor = Colors.red.shade50;
+    // Card styling based on state
+    final Color cardColor = isCancelled
+        ? AppTheme.errorRedContainer.withValues(alpha: 0.5)
+        : colorScheme.surfaceContainerLowest;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isCancelled
-            ? BorderSide(color: Colors.red.shade200)
-            : BorderSide.none,
+    final Color borderColor = isCancelled
+        ? AppTheme.errorRed.withValues(alpha: 0.3)
+        : colorScheme.outlineVariant;
+
+    final Color barColor = isFull
+        ? AppTheme.errorRed.withValues(alpha: 0.6)
+        : AppTheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+        boxShadow: isCancelled
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
-      color: cardColor,
-      elevation: isCancelled ? 0 : 3,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Date ──────────────────────────────────────────────────────
-            Text(
-              DateFormat.yMMMMd().format(session.startsAt),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            // ── Date & time row ───────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: isCancelled
+                        ? AppTheme.errorRedContainer
+                        : colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center_rounded,
+                    size: 18,
+                    color: isCancelled
+                        ? AppTheme.errorRed
+                        : colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat.yMMMMd().format(session.startsAt),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${DateFormat.Hm().format(session.startsAt)} – '
+                        '${DateFormat.Hm().format(session.endsAt)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                // Capacity badge
+                _CapacityBadge(
+                  booked: session.bookedCount,
+                  capacity: session.capacity,
+                  isFull: isFull,
+                ),
+              ],
             ),
 
-            const SizedBox(height: 4),
-
-            // ── Time ──────────────────────────────────────────────────────
-            Text(
-              '${DateFormat.Hm().format(session.startsAt)} – '
-              '${DateFormat.Hm().format(session.endsAt)}',
-              style: const TextStyle(fontSize: 14),
-            ),
-
-            const SizedBox(height: 12),
-
-            // ── Capacity info ──────────────────────────────────────────────
-            Text(
-              '${session.bookedCount}/${session.capacity} spots booked',
-              style: const TextStyle(fontSize: 14),
-            ),
-
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
 
             // ── Progress bar ───────────────────────────────────────────────
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: fillPercent.clamp(0.0, 1.0),
-                minHeight: 8,
-                backgroundColor: Colors.grey.shade300,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isFull ? Colors.red.shade300 : Colors.blue,
-                ),
+                minHeight: 7,
+                backgroundColor: AppTheme.outlineVariant,
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             // ── Action button ──────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: buttonEnabled ? buttonAction : null,
-                style: isCancelled
-                    ? ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade100,
-                        foregroundColor: Colors.red.shade700,
-                        disabledBackgroundColor: Colors.red.shade100,
-                        disabledForegroundColor: Colors.red.shade400,
-                      )
-                    : null,
-                child: Text(buttonLabel),
-              ),
+              child: isCancelled
+                  ? OutlinedButton(
+                      onPressed: null,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.errorRed,
+                        side: BorderSide(
+                            color: AppTheme.errorRed.withValues(alpha: 0.4)),
+                        disabledForegroundColor:
+                            AppTheme.errorRed.withValues(alpha: 0.7),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Cancelled'),
+                    )
+                  : FilledButton(
+                      onPressed: buttonEnabled ? buttonAction : null,
+                      style: buttonEnabled
+                          ? null
+                          : FilledButton.styleFrom(
+                              backgroundColor: colorScheme.surfaceContainerHigh,
+                              foregroundColor: colorScheme.onSurface
+                                  .withValues(alpha: 0.5),
+                              disabledBackgroundColor:
+                                  colorScheme.surfaceContainerHigh,
+                              disabledForegroundColor: colorScheme.onSurface
+                                  .withValues(alpha: 0.45),
+                            ),
+                      child: Text(buttonLabel),
+                    ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CapacityBadge extends StatelessWidget {
+  final int booked;
+  final int capacity;
+  final bool isFull;
+
+  const _CapacityBadge({
+    required this.booked,
+    required this.capacity,
+    required this.isFull,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg = isFull
+        ? AppTheme.errorRedContainer
+        : AppTheme.secondary;
+    final Color fg = isFull
+        ? AppTheme.errorRed
+        : AppTheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$booked/$capacity',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: fg,
         ),
       ),
     );

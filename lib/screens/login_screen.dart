@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'main_shell.dart';
@@ -151,52 +152,34 @@ class _LoginScreenState extends State<LoginScreen>
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 24),
-
-              // ── Logo / Branding ──────────────────────────────────────
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.primary.withOpacity(0.18),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.self_improvement_rounded,
-                  size: 40,
-                  color: colorScheme.primary,
-                ),
-              ),
               const SizedBox(height: 20),
-              Text(
-                'Pilates Studio',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
+
+              // ── Logo ─────────────────────────────────────────────────────
+              SvgPicture.asset(
+                'assets/images/logo.svg',
+                width: 200,
+                height: 165,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 6),
+
+              const SizedBox(height: 8),
+
+              // ── Subtitle ─────────────────────────────────────────────────
               Text(
                 _isLogin ? 'Welcome back!' : 'Create your account',
                 style: textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurface.withOpacity(0.55),
+                  letterSpacing: 0.2,
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
-              // ── Form Card ────────────────────────────────────────────
+              // ── Form Card ─────────────────────────────────────────────────
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Container(
@@ -206,13 +189,13 @@ class _LoginScreenState extends State<LoginScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 16,
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
                     ],
                     border: Border.all(
-                      color: colorScheme.outlineVariant.withOpacity(0.6),
+                      color: colorScheme.outlineVariant,
                     ),
                   ),
                   child: Column(
@@ -262,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen>
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: colorScheme.onSurface.withOpacity(0.5),
+                            color: colorScheme.onSurface.withOpacity(0.45),
                             size: 20,
                           ),
                           onPressed: () => setState(
@@ -296,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 child: Text(
                                   _isLogin ? 'Sign In' : 'Create Account',
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.3,
                                   ),
@@ -319,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ? "Don't have an account?"
                         : 'Already have an account?',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withOpacity(0.55),
                     ),
                   ),
                   TextButton(
@@ -378,27 +361,6 @@ class _StyledTextField extends StatelessWidget {
         labelText: label,
         prefixIcon: Icon(icon, size: 20, color: colorScheme.primary),
         suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.primary, width: 1.8),
-        ),
-        labelStyle: TextStyle(
-          color: colorScheme.onSurface.withOpacity(0.6),
-          fontSize: 14,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        isDense: true,
       ),
     );
   }

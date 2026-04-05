@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/rating_model.dart';
 import '../../services/rating_service.dart';
+import '../../theme.dart';
 
 class AdminRatingsScreen extends StatelessWidget {
   const AdminRatingsScreen({super.key});
@@ -35,17 +36,17 @@ class AdminRatingsScreen extends StatelessWidget {
 
               // ── Ratings list ─────────────────────────────────────────
               if (ratings.isEmpty)
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.star_outline,
-                            size: 48, color: Colors.grey),
-                        SizedBox(height: 12),
+                            size: 48, color: AppTheme.textColor.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
                         Text(
                           'No ratings yet.',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.45)),
                         ),
                       ],
                     ),
@@ -56,7 +57,7 @@ class AdminRatingsScreen extends StatelessWidget {
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                     itemCount: ratings.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (context, i) =>
                         const SizedBox(height: 8),
                     itemBuilder: (_, i) =>
                         _RatingTile(rating: ratings[i]),
@@ -83,8 +84,7 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-      color:
-          Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+      color: AppTheme.secondary.withValues(alpha: 0.5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -104,7 +104,7 @@ class _SummaryCard extends StatelessWidget {
               Text(
                 '$totalCount rating${totalCount == 1 ? '' : 's'}',
                 style: TextStyle(
-                    fontSize: 13, color: Colors.grey.shade600),
+                    fontSize: 13, color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
@@ -190,7 +190,7 @@ class _RatingTile extends StatelessWidget {
                     Text(
                       rating.userEmail,
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                          fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
@@ -207,25 +207,25 @@ class _RatingTile extends StatelessWidget {
           // ── Session date + rating date ───────────────────────────────
           Row(
             children: [
-              const Icon(Icons.fitness_center,
-                  size: 14, color: Colors.grey),
+              Icon(Icons.fitness_center,
+                  size: 14, color: AppTheme.textColor.withValues(alpha: 0.4)),
               const SizedBox(width: 4),
               Text(
                 'Session: ${DateFormat('EEE dd MMM yyyy • HH:mm').format(rating.sessionStartsAt)}',
                 style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade700),
+                    fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.schedule, size: 14, color: Colors.grey),
+              Icon(Icons.schedule, size: 14, color: AppTheme.textColor.withValues(alpha: 0.4)),
               const SizedBox(width: 4),
               Text(
                 'Rated: ${DateFormat('dd MMM yyyy').format(rating.createdAt)}',
                 style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade700),
+                    fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
@@ -237,14 +237,14 @@ class _RatingTile extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
+                color: AppTheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '"${rating.comment}"',
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade800,
+                  color: AppTheme.textColor.withValues(alpha: 0.7),
                   fontStyle: FontStyle.italic,
                 ),
               ),

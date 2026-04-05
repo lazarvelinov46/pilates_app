@@ -7,6 +7,7 @@ import '../../models/promotion_model.dart';
 import '../../models/user_preferences_model.dart';
 import '../../services/user_service.dart';
 import '../../services/auth_service.dart';
+import '../../theme.dart';
 import '../login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Password reset email sent to $email'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.successGreen,
           ),
         );
       }
@@ -39,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(
             content:
                 Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
@@ -78,9 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
@@ -88,6 +86,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Text(
@@ -125,9 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Preferences saved'),
-                            backgroundColor: Colors.green),
+                        const SnackBar(content: Text('Preferences saved')),
                       );
                     }
                   },
@@ -146,9 +154,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
@@ -162,7 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppTheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -187,14 +192,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(height: 1),
             Expanded(
               child: history.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.history, size: 48, color: Colors.grey),
-                          SizedBox(height: 12),
+                          Icon(Icons.history,
+                              size: 48,
+                              color: AppTheme.textColor
+                                  .withValues(alpha: 0.3)),
+                          const SizedBox(height: 12),
                           Text('No past promotions',
-                              style: TextStyle(color: Colors.grey)),
+                              style: TextStyle(
+                                  color: AppTheme.textColor
+                                      .withValues(alpha: 0.45))),
                         ],
                       ),
                     )
@@ -202,10 +212,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       controller: scrollCtrl,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                       itemCount: history.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (context, i) =>
                           const SizedBox(height: 10),
                       itemBuilder: (_, i) {
-                        // Show newest first
                         final p = history[history.length - 1 - i];
                         return _PromotionHistoryTile(promotion: p);
                       },
@@ -218,8 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────────
-  // ── Logout ─────────────────────────────────────────────────────────────────
-Future<void> _logout() async {
+  Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -232,6 +240,7 @@ Future<void> _logout() async {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text('Logout'),
           ),
         ],
@@ -284,7 +293,7 @@ Future<void> _logout() async {
                 child: Column(
                   children: [
                     CircleAvatar(
-                      radius: 40,
+                      radius: 42,
                       backgroundColor:
                           Theme.of(context).colorScheme.primaryContainer,
                       child: Text(
@@ -292,7 +301,7 @@ Future<void> _logout() async {
                             .toUpperCase(),
                         style: TextStyle(
                           fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
@@ -311,7 +320,9 @@ Future<void> _logout() async {
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
-                          ?.copyWith(color: Colors.grey),
+                          ?.copyWith(
+                              color: AppTheme.textColor
+                                  .withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
@@ -372,9 +383,9 @@ class _SectionHeader extends StatelessWidget {
     return Text(
       title.toUpperCase(),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.grey,
+            color: AppTheme.textColor.withValues(alpha: 0.45),
             letterSpacing: 1.2,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
           ),
     );
   }
@@ -397,14 +408,17 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        leading: Icon(icon, color: AppTheme.primary),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: subtitle != null ? Text(subtitle!) : null,
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        subtitle: subtitle != null
+            ? Text(subtitle!,
+                style: TextStyle(
+                    color: AppTheme.textColor.withValues(alpha: 0.55),
+                    fontSize: 13))
+            : null,
+        trailing: Icon(Icons.chevron_right,
+            color: AppTheme.textColor.withValues(alpha: 0.35)),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -425,9 +439,9 @@ class _PromotionHistoryTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,7 +456,9 @@ class _PromotionHistoryTile extends StatelessWidget {
               ),
               Text(
                 'Expired ${DateFormat('dd MMM yy').format(promotion.expiresAt)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textColor.withValues(alpha: 0.45)),
               ),
             ],
           ),
@@ -452,16 +468,17 @@ class _PromotionHistoryTile extends StatelessWidget {
             child: LinearProgressIndicator(
               value: fillPercent.clamp(0.0, 1.0),
               minHeight: 6,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: AppTheme.outlineVariant,
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(Colors.blueGrey),
+                  const AlwaysStoppedAnimation<Color>(AppTheme.historySlate),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             '${promotion.attended} attended · ${promotion.booked} booked · ${promotion.remaining} unused  |  $used / ${promotion.totalSessions} total',
-            style:
-                const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textColor.withValues(alpha: 0.5)),
           ),
         ],
       ),
