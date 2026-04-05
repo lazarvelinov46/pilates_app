@@ -316,10 +316,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Promotion section ─────────────────────────────────────────────────────
 
   Widget _buildPromotionSection(BuildContext context, AppUser user) {
-    final activePromos = user.sortedPromotions.where((p) => p.canBook()).toList();
+    final activePromos = user.sortedPromotions.where((p) => p.attended < p.totalSessions).toList();
 
     final inactivePromos = user.sortedPromotions
-        .where((p) => !p.canBook())
+        .where((p) => p.attended >= p.totalSessions)
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
