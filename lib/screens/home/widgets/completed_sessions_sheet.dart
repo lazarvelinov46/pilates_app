@@ -340,9 +340,10 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Rate your session'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Text(
             DateFormat('EEEE, dd MMM yyyy • HH:mm')
                 .format(widget.booking.sessionStartsAt),
@@ -393,6 +394,7 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
             textCapitalization: TextCapitalization.sentences,
           ),
         ],
+        ),
       ),
       actions: [
         TextButton(

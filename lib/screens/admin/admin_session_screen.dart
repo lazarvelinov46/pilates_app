@@ -450,7 +450,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                               )
                           : null,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Row(
                           children: [
                             // ── Leading avatar ─────────────────────────────────────
