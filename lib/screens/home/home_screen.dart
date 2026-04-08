@@ -9,6 +9,7 @@ import '../../../models/session_model.dart';
 import '../../../models/rating_model.dart';
 import '../../../models/promotion_model.dart';
 import '../../../services/booking_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/session_service.dart';
 import '../../../services/user_service.dart';
 import '../../../services/rating_service.dart';
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final String userId = FirebaseAuth.instance.currentUser!.uid;
   final UserService _userService = UserService();
   final BookingService _bookingService = BookingService();
+  final NotificationService _notificationService = NotificationService();
   final SessionService _sessionService = SessionService();
   final RatingService _ratingService = RatingService();
 
@@ -121,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
         sessionId: session.id,
       );
       setState(() => _bookedSessionIds.add(session.id));
+      await _notificationService.notifyBookingConfirmed(session);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

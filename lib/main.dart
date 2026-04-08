@@ -16,8 +16,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialise local notifications once at startup so the permission dialog
-  // appears early and timezone data is ready before any booking is made.
+  // Initialise FCM, local notifications, and timezone data.
+  // The service also registers the background FCM handler and starts
+  // listening to auth-state changes to keep the FCM token in sync.
   await NotificationService().init();
 
   runApp(const MyApp());

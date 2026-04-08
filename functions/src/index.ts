@@ -1,15 +1,114 @@
-import {onDocumentUpdated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
 const db = admin.firestore();
 
-// Triggered whenever a session document is updated.
-// When active flips true → false (admin cancels), this:
-//   1. Marks every active booking as 'cancelled_by_admin'
-//   2. Refunds the credit to the correct promotion — always, no 12h restriction
-//   3. Sends an FCM push to each affected user
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: write a notification document to users/{userId}/notifications
+// ─────────────────────────────────────────────────────────────────────────────
+async function storeNotification(
+  userId: string,
+  title: string,
+  message: string,
+  type: string
+): Promise<void> {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection("notifications")
+    .add({
+      title,
+      message,
+      type,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isRead: false,
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: send an FCM push if the user has notifications enabled and an FCM
+// token stored. Silently skips if not.
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendFCM(
+  userId: string,
+  title: string,
+  body: string
+): Promise<void> {
+  const userSnap = await db.collection("users").doc(userId).get();
+  const userData = userSnap.data();
+  if (!userData) return;
+
+  // Respect user preferences.
+  const notificationsEnabled =
+    userData?.preferences?.notifications !== false; // default true
+  if (!notificationsEnabled) return;
+
+  const fcmToken: string | undefined = userData?.fcmToken;
+  if (!fcmToken) return;
+
+  try {
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: {title, body},
+      android: {priority: "high"},
+      apns: {payload: {aps: {sound: "default"}}},
+    });
+  } catch (err) {
+    console.error(`FCM send failed for user ${userId}:`, err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trigger: new booking created → send FCM push confirmation.
+//
+// The client already writes the in-app notification document immediately after
+// booking, so this function only sends the FCM push (works on Spark plan
+// because FCM is a Firebase/Google service).
+// ─────────────────────────────────────────────────────────────────────────────
+export const onBookingCreated = onDocumentCreated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return null;
+
+    // Only notify for new active bookings (skip admin-created test docs, etc.).
+    if (data.status !== "active") return null;
+
+    const userId = data.userId as string;
+    const sessionStartsAt: Date = data.sessionStartsAt?.toDate
+      ? data.sessionStartsAt.toDate()
+      : new Date();
+
+    const formattedDate = sessionStartsAt.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    });
+    const formattedTime = sessionStartsAt.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    await sendFCM(
+      userId,
+      "Booking confirmed",
+      `Your session on ${formattedDate} at ${formattedTime} is confirmed.`
+    );
+
+    console.log(`onBookingCreated: notified user ${userId}`);
+    return null;
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trigger: session cancelled by admin (active → false).
+//
+// 1. Marks every active booking as 'cancelled_by_admin' and refunds credits.
+// 2. Writes a notification doc to each user's notifications subcollection.
+// 3. Sends an FCM push to each affected user.
+// ─────────────────────────────────────────────────────────────────────────────
 export const onSessionCancelled = onDocumentUpdated(
   "sessions/{sessionId}",
   async (event) => {
@@ -31,6 +130,7 @@ export const onSessionCancelled = onDocumentUpdated(
 
     const docs = bookingsSnap.docs;
 
+    // ── 1. Cancel bookings and refund credits ───────────────────────────────
     const refundPromises = docs.map(async (bookingDoc) => {
       const bookingData = bookingDoc.data() as Record<string, unknown>;
       const userId = bookingData.userId as string;
@@ -43,7 +143,6 @@ export const onSessionCancelled = onDocumentUpdated(
 
         const userData = userSnap.data() as Record<string, unknown>;
 
-        // Cancel the booking.
         tx.update(bookingDoc.ref, {
           status: "cancelled_by_admin",
           cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -51,23 +150,20 @@ export const onSessionCancelled = onDocumentUpdated(
         });
 
         const promoCreatedAtTs =
-          bookingData.promotionCreatedAt instanceof
-          admin.firestore.Timestamp
+          bookingData.promotionCreatedAt instanceof admin.firestore.Timestamp
             ? (bookingData.promotionCreatedAt as admin.firestore.Timestamp)
             : null;
 
-        // ── Trial booking not yet absorbed by a promotion ────────────────
+        // Trial booking not yet absorbed by a promotion.
         if (isTrialBooking && !promoCreatedAtTs) {
-          // Reset the trial slot so the user can book again.
           tx.update(userRef, {trialSessionUsed: false});
           return;
         }
 
-        // ── Normal refund path (also covers absorbed trial bookings) ──────
         if (promoCreatedAtTs) {
           const targetMs = promoCreatedAtTs.toMillis();
 
-          // First, try to find the promotion in the active promotions array.
+          // Try active promotions array first.
           if (Array.isArray(userData.promotions)) {
             const promotions = (
               userData.promotions as Record<string, unknown>[]
@@ -88,10 +184,7 @@ export const onSessionCancelled = onDocumentUpdated(
             }
           }
 
-          // Promotion not found in active list — it may have been archived to
-          // promotionHistory (happens when a promotion is expired AND fully
-          // booked/attended at the time syncAttendedSessions runs, even if a
-          // future session is still booked). Move it back and refund.
+          // Fall back to promotionHistory (promotion was archived).
           if (Array.isArray(userData.promotionHistory)) {
             const history = (
               userData.promotionHistory as Record<string, unknown>[]
@@ -129,8 +222,7 @@ export const onSessionCancelled = onDocumentUpdated(
         } else if (userData.promotion && !isTrialBooking) {
           // Legacy single-field path.
           tx.update(userRef, {
-            "promotion.booked":
-              admin.firestore.FieldValue.increment(-1),
+            "promotion.booked": admin.firestore.FieldValue.increment(-1),
           });
         }
       });
@@ -138,7 +230,7 @@ export const onSessionCancelled = onDocumentUpdated(
 
     await Promise.all(refundPromises);
 
-    // ── FCM notifications ────────────────────────────────────────────────
+    // ── 2. Format session date/time for notification messages ───────────────
     const sessionDate: Date = after.startsAt?.toDate
       ? after.startsAt.toDate()
       : new Date();
@@ -153,38 +245,81 @@ export const onSessionCancelled = onDocumentUpdated(
       minute: "2-digit",
     });
 
-    const messaging = admin.messaging();
+    const notifTitle = "Session Cancelled";
+    const notifBody =
+      `Your session on ${formattedDate} at ${formattedTime} has been ` +
+      "cancelled by the studio. Your credit has been refunded.";
 
-    const fcmPromises = docs.map(async (bookingDoc) => {
+    // ── 3. Write in-app notification + send FCM push to each affected user ──
+    const notifyPromises = docs.map(async (bookingDoc) => {
       const {userId} = bookingDoc.data() as {userId: string};
-      const userSnap = await db.collection("users").doc(userId).get();
-      const fcmToken: string | undefined = userSnap.data()?.fcmToken;
-      if (!fcmToken) return;
 
-      try {
-        await messaging.send({
-          token: fcmToken,
-          notification: {
-            title: "Session Cancelled",
-            body:
-              `Your session on ${formattedDate} at ${formattedTime} has been ` +
-              "cancelled by the studio. Your credit has been refunded.",
-          },
-          android: {priority: "high"},
-          apns: {payload: {aps: {sound: "default"}}},
-        });
-      } catch (err) {
-        console.error(`FCM send failed for user ${userId}:`, err);
-      }
+      // Check preferences and send FCM (helper reads the user doc once).
+      await sendFCM(userId, notifTitle, notifBody);
+
+      // Always write the in-app notification (user can see it in the app
+      // even if push notifications are disabled).
+      await storeNotification(userId, notifTitle, notifBody, "sessionCancelled");
     });
 
-    await Promise.all(fcmPromises);
+    await Promise.all(notifyPromises);
 
     console.log(
-      `onSessionCancelled: cancelled ${docs.length} booking(s) ` +
-        `for session ${sessionId}`
+      `onSessionCancelled: cancelled ${docs.length} booking(s) for session ${sessionId}`
     );
 
     return null;
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLAZE PLAN ONLY — 2-hour reminder via Cloud Tasks
+//
+// Uncomment when you upgrade to the Blaze (pay-as-you-go) plan.
+// This sends a server-side FCM reminder 2 hours before each session,
+// which is more reliable than the client-side local notification used now.
+//
+// Steps to enable:
+//   1. Upgrade to Blaze plan in Firebase console.
+//   2. Enable the Cloud Tasks API in Google Cloud Console.
+//   3. Uncomment the code below.
+//   4. Run: firebase deploy --only functions
+//
+// import {onDocumentCreated as _onDocumentCreated} from "firebase-functions/v2/firestore";
+// import {CloudTasksClient} from "@google-cloud/tasks";
+//
+// export const scheduleSessionReminder = _onDocumentCreated(
+//   "bookings/{bookingId}",
+//   async (event) => {
+//     const data = event.data?.data();
+//     if (!data || data.status !== "active") return null;
+//
+//     const userId = data.userId as string;
+//     const sessionStartsAt: admin.firestore.Timestamp = data.sessionStartsAt;
+//     const reminderTime = new Date(sessionStartsAt.toMillis() - 2 * 60 * 60 * 1000);
+//     if (reminderTime <= new Date()) return null; // Already past
+//
+//     const tasksClient = new CloudTasksClient();
+//     const project = process.env.GCLOUD_PROJECT!;
+//     const queue = "session-reminders";
+//     const location = "europe-west1"; // adjust to your region
+//     const parent = tasksClient.queuePath(project, location, queue);
+//
+//     // The task payload calls the sendReminderFCM HTTP function below.
+//     await tasksClient.createTask({
+//       parent,
+//       task: {
+//         scheduleTime: {seconds: Math.floor(reminderTime.getTime() / 1000)},
+//         httpRequest: {
+//           httpMethod: "POST",
+//           url: `https://${location}-${project}.cloudfunctions.net/sendReminderFCM`,
+//           body: Buffer.from(JSON.stringify({userId, bookingId: event.params.bookingId})).toString("base64"),
+//           headers: {"Content-Type": "application/json"},
+//         },
+//       },
+//     });
+//
+//     return null;
+//   }
+// );
+// ─────────────────────────────────────────────────────────────────────────────
