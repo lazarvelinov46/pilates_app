@@ -56,6 +56,7 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
               DropdownButtonFormField<Package>(
                 value: selectedPkg,
                 hint: const Text('Choose package'),
+                isExpanded: true,
                 items: packages.map((p) => DropdownMenuItem(value: p, child: Text('${p.name} (${p.numberOfSessions} sessions)'))).toList(),
                 onChanged: (p) => setSt(() => selectedPkg = p),
                 validator: (_) => selectedPkg == null ? 'Select a package' : null,

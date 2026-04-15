@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/session_model.dart';
@@ -27,12 +28,6 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
-      final shouldShow = _scrollController.offset < 20;
-      if (shouldShow != _calendarVisible) {
-        setState(() => _calendarVisible = shouldShow);
-      }
-    });
   }
 
   @override
@@ -404,7 +399,18 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
               )
             else
               Expanded(
-                child: ListView.separated(
+                child: NotificationListener<UserScrollNotification>(
+                  onNotification: (notification) {
+                    if (notification.direction == ScrollDirection.reverse) {
+                      if (_calendarVisible) setState(() => _calendarVisible = false);
+                    } else if (notification.direction == ScrollDirection.forward) {
+                      if (!_calendarVisible && _scrollController.offset < 20) {
+                        setState(() => _calendarVisible = true);
+                      }
+                    }
+                    return false;
+                  },
+                  child: ListView.separated(
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                   itemCount: todaysSessions.length,
@@ -501,6 +507,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                       ),
                     );
                   },
+                ),
                 ),
               ),
           ]),

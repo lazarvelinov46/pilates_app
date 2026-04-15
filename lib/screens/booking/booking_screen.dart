@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -48,12 +49,6 @@ class _BookingScreenState extends State<BookingScreen> {
         _bookingService.getUserActiveBookingsStream(userId);
     _loadAvailableDates();
 
-    _scrollController.addListener(() {
-      final shouldShow = _scrollController.offset < 20;
-      if (shouldShow != _calendarVisible) {
-        setState(() => _calendarVisible = shouldShow);
-      }
-    });
   }
 
   @override
@@ -284,26 +279,38 @@ class _BookingScreenState extends State<BookingScreen> {
                                 );
                               }
 
-                              return ListView.builder(
-                                controller: _scrollController,
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                                itemCount: sessions.length,
-                                itemBuilder: (context, index) {
-                                  final session = sessions[index];
-                                  final isCancelled =
-                                      _cancelledSessionIds
-                                          .contains(session.id);
-                                  final alreadyBooked =
-                                      activeBookingIds.contains(session.id);
-                                  return SessionCard(
-                                    session: session,
-                                    alreadyBooked:
-                                        alreadyBooked && !isCancelled,
-                                    isCancelled: isCancelled,
-                                    onBook: () => _confirmBooking(session),
-                                  );
+                              return NotificationListener<UserScrollNotification>(
+                                onNotification: (notification) {
+                                  if (notification.direction == ScrollDirection.reverse) {
+                                    if (_calendarVisible) setState(() => _calendarVisible = false);
+                                  } else if (notification.direction == ScrollDirection.forward) {
+                                    if (!_calendarVisible && _scrollController.offset < 20) {
+                                      setState(() => _calendarVisible = true);
+                                    }
+                                  }
+                                  return false;
                                 },
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                  itemCount: sessions.length,
+                                  itemBuilder: (context, index) {
+                                    final session = sessions[index];
+                                    final isCancelled =
+                                        _cancelledSessionIds
+                                            .contains(session.id);
+                                    final alreadyBooked =
+                                        activeBookingIds.contains(session.id);
+                                    return SessionCard(
+                                      session: session,
+                                      alreadyBooked:
+                                          alreadyBooked && !isCancelled,
+                                      isCancelled: isCancelled,
+                                      onBook: () => _confirmBooking(session),
+                                    );
+                                  },
+                                ),
                               );
                             },
                           );
