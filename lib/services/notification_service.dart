@@ -171,8 +171,8 @@ class NotificationService {
     tz.initializeTimeZones();
     if (!kIsWeb) {
       try {
-        final name = await FlutterTimezone.getLocalTimezone();
-        tz.setLocalLocation(tz.getLocation(name));
+        final tzInfo = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
       } catch (_) {
         tz.setLocalLocation(tz.UTC);
       }

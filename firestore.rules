@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------- HELPERS ----------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+           .data.role == 'admin';
+    }
+
+    // ---------------- USERS ----------------
+    match /users/{userId} {
+      allow read, create, update: if isOwner(userId);
+      allow read, update:         if isAdmin();
+      // Admins need to list users for the promotions search screen
+      allow list:                 if isAdmin();
+      allow delete:               if false;
+
+      // ── Notifications subcollection ──────────────────────────────────────
+      // Users read and write their own notification documents (booking
+      // confirmations, etc.). Cloud Functions use the Admin SDK and bypass
+      // these rules entirely, so admin-cancellation notifications always work.
+      match /notifications/{notificationId} {
+        allow read, create: if isOwner(userId);
+        allow update:       if isOwner(userId); // mark-as-read
+        allow delete:       if isOwner(userId);
+      }
+    }
+
+    // ---------------- SESSIONS ----------------
+    match /sessions/{sessionId} {
+      allow read:          if isSignedIn();
+      allow create:        if isAdmin();
+      allow delete:        if isAdmin();
+      // Signed-in users need update access so the booking/cancel
+      // transaction can increment or decrement bookedCount on the client.
+      // The transaction validates capacity and active status before writing.
+      allow update:        if isSignedIn();
+    }
+
+    match /bookings/{bookingId} {
+      allow get:    if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list:   if isSignedIn();
+      allow read:   if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      // User cancelling their own booking
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'cancelled';
+
+      // User stamping attendanceRecorded on their own past booking
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['attendanceRecorded']);
+
+      // Admin can update any booking
+      allow update: if isAdmin();
+
+      allow delete: if false;
+    }
+
+    // ---------------- PACKAGES ----------------
+    match /packages/{packageId} {
+      allow read:          if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------------- RATINGS ----------------
+    match /ratings/{ratingId} {
+      // Users can read their own ratings; admins can read all
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid);
+      // User can only create a rating for themselves
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      // No updates or deletes — ratings are immutable
+      allow update, delete: if false;
+    }
+  }
+}
