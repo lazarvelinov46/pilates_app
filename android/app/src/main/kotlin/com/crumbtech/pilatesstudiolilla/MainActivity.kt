@@ -1,4 +1,4 @@
-package com.example.pilates_app
+package com.crumbtech.pilatesstudiolilla
 
 import io.flutter.embedding.android.FlutterActivity
 

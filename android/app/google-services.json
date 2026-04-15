@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:762822830497:android:7ac3d94c7994db45d143e0",
+        "mobilesdk_app_id": "1:762822830497:android:e49d7131abdb1e59d143e0",
         "android_client_info": {
-          "package_name": "com.example.pilates_app"
+          "package_name": "com.crumbtech.pilatesstudiolilla"
         }
       },
       "oauth_client": [
@@ -29,6 +29,13 @@
             {
               "client_id": "762822830497-tt3cr4ncp8er8drugv7u9ioer2jcoesq.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "762822830497-ej7r0v713npjbuahtfrlv35v1ifd8l0j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pilatesApp"
+              }
             }
           ]
         }

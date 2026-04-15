@@ -20,8 +20,6 @@ class AuthService {
     required String name,
     required String surname,
   }) async {
-    print('>>> Starting registration for $email');
-
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -30,16 +28,8 @@ class AuthService {
     final user = credential.user;
     if (user == null) throw Exception('User creation failed.');
 
-    print('>>> Auth account created: ${user.uid}');
-
-    try {
-      await user.updateDisplayName('$name $surname');
-      await user.sendEmailVerification();
-      print('>>> sendEmailVerification() completed successfully');
-    } catch (e) {
-      print('>>> sendEmailVerification() FAILED: $e');
-      rethrow;
-    }
+    await user.updateDisplayName('$name $surname');
+    await user.sendEmailVerification();
 
     final appUser = AppUser(
       uid: user.uid,
@@ -52,7 +42,6 @@ class AuthService {
     );
 
     await _db.collection('users').doc(user.uid).set(appUser.toMap());
-    print('>>> Firestore document written successfully');
   }
 
   /// Reloads the Firebase Auth token and checks the verified flag.
