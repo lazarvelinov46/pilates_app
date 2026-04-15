@@ -89,7 +89,6 @@ class _BookingScreenState extends State<BookingScreen> {
       setState(() => _cancelledSessionIds.remove(session.id));
 
       await _notificationService.notifyBookingConfirmed(session);
-      await _notificationService.scheduleSessionReminders(session);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
