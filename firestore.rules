@@ -49,7 +49,7 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow get:    if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow list:   if isSignedIn();
+      allow list:   if isSignedIn() && resource.data.userId == request.auth.uid;
       allow read:   if isAdmin();
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
