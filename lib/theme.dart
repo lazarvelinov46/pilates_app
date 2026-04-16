@@ -107,7 +107,7 @@ class AppTheme {
         foregroundColor: textColor,
         elevation: 0,
         scrolledUnderElevation: 0.5,
-        shadowColor: Colors.black.withOpacity(0.08),
+        shadowColor: Colors.black.withValues(alpha:0.08),
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -126,7 +126,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surfaceContainerLowest,
         selectedItemColor: primary,
-        unselectedItemColor: textColor.withOpacity(0.42),
+        unselectedItemColor: textColor.withValues(alpha:0.42),
         elevation: 0,
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: GoogleFonts.poppins(
@@ -151,7 +151,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: outline.withOpacity(0.5),
+          disabledBackgroundColor: outline.withValues(alpha:0.5),
           textStyle: GoogleFonts.poppins(
               fontWeight: FontWeight.w600, fontSize: 15),
           shape: RoundedRectangleBorder(
@@ -165,7 +165,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: outline.withOpacity(0.4),
+          disabledBackgroundColor: outline.withValues(alpha:0.4),
           elevation: 0,
           textStyle: GoogleFonts.poppins(
               fontWeight: FontWeight.w500, fontSize: 14),
@@ -257,7 +257,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return primary.withOpacity(0.35);
+            return primary.withValues(alpha:0.35);
           }
           return null;
         }),

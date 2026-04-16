@@ -115,7 +115,7 @@ class _AdminSessionAttendeesScreenState
               '${DateFormat.Hm().format(session.startsAt)} – ${DateFormat.Hm().format(session.endsAt)}',
               style: TextStyle(
                 fontSize: 13,
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha:0.6),
               ),
             ),
           ],
@@ -146,14 +146,14 @@ class _AdminSessionAttendeesScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: cs.outline.withOpacity(0.15),
+                      color: cs.outline.withValues(alpha:0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       'Completed',
                       style: TextStyle(
                           fontSize: 11,
-                          color: cs.onSurface.withOpacity(0.6),
+                          color: cs.onSurface.withValues(alpha:0.6),
                           fontWeight: FontWeight.w500),
                     ),
                   ),
@@ -173,12 +173,12 @@ class _AdminSessionAttendeesScreenState
                           children: [
                             Icon(Icons.group_off_outlined,
                                 size: 56,
-                                color: cs.onSurface.withOpacity(0.25)),
+                                color: cs.onSurface.withValues(alpha:0.25)),
                             const SizedBox(height: 12),
                             Text(
                               'No bookings for this session',
                               style: TextStyle(
-                                  color: cs.onSurface.withOpacity(0.5)),
+                                  color: cs.onSurface.withValues(alpha:0.5)),
                             ),
                           ],
                         ),
@@ -210,7 +210,7 @@ class _AttendeeCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha:0.5)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -246,7 +246,7 @@ class _AttendeeCard extends StatelessWidget {
                     attendee.email,
                     style: TextStyle(
                       fontSize: 13,
-                      color: cs.onSurface.withOpacity(0.6),
+                      color: cs.onSurface.withValues(alpha:0.6),
                     ),
                   ),
                 ],
@@ -263,12 +263,12 @@ class _AttendeeCard extends StatelessWidget {
                 Text(
                   DateFormat('dd MMM').format(attendee.booking.createdAt),
                   style: TextStyle(
-                      fontSize: 11, color: cs.onSurface.withOpacity(0.45)),
+                      fontSize: 11, color: cs.onSurface.withValues(alpha:0.45)),
                 ),
                 Text(
                   DateFormat('HH:mm').format(attendee.booking.createdAt),
                   style: TextStyle(
-                      fontSize: 11, color: cs.onSurface.withOpacity(0.45)),
+                      fontSize: 11, color: cs.onSurface.withValues(alpha:0.45)),
                 ),
               ],
             ),

@@ -185,7 +185,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
               Text(
                 'We sent a verification link to',
                 style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                  color: colorScheme.onSurface.withValues(alpha:0.6),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -204,7 +204,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
               Text(
                 'Open your inbox and tap the link,\nthen come back and press the button below.',
                 style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.55),
+                  color: colorScheme.onSurface.withValues(alpha:0.55),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -253,14 +253,14 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   Text(
                     "Didn't get it?  ",
                     style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withValues(alpha:0.6),
                     ),
                   ),
                   if (_resendCooldown > 0)
                     Text(
                       'Resend in ${_resendCooldown}s',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.4),
+                        color: colorScheme.onSurface.withValues(alpha:0.4),
                       ),
                     )
                   else

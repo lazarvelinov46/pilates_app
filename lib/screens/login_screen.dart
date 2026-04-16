@@ -255,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha:0.05),
                         blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
@@ -311,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen>
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: colorScheme.onSurface.withOpacity(0.45),
+                            color: colorScheme.onSurface.withValues(alpha:0.45),
                             size: 20,
                           ),
                           onPressed: () => setState(
