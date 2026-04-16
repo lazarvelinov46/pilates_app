@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/user_model.dart';
 import '../../models/promotion_model.dart';
@@ -363,6 +364,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? 'No past promotions'
                     : '${user.promotionHistory.length} past promotion${user.promotionHistory.length == 1 ? '' : 's'}',
                 onTap: () => _showPromotionHistory(user.promotionHistory),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Legal Section ──────────────────────────────────────────
+              _SectionHeader(title: 'Legal'),
+              const SizedBox(height: 8),
+
+              _ProfileTile(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy Policy',
+                subtitle: 'How we handle your data',
+                onTap: () => launchUrl(
+                  Uri.parse('https://pilates-studio-da2a9.web.app/privacy-policy.html'),
+                  mode: LaunchMode.externalApplication,
+                ),
               ),
             ],
           );

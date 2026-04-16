@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'main_shell.dart';
@@ -356,6 +357,38 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
               ),
+
+              if (!_isLogin) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      Text(
+                        'By registering you agree to our ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => launchUrl(
+                          Uri.parse('https://pilates-studio-da2a9.web.app/privacy-policy.html'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        child: Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.primary,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               if (_isLogin) ...[
                 const SizedBox(height: 4),
