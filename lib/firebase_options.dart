@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDcPKZtZo4AEd_UG9nFQYchdlvsnmMYiM0',
-    appId: '1:762822830497:android:7ac3d94c7994db45d143e0',
+    appId: '1:762822830497:android:e49d7131abdb1e59d143e0',
     messagingSenderId: '762822830497',
     projectId: 'pilates-studio-da2a9',
     storageBucket: 'pilates-studio-da2a9.firebasestorage.app',
@@ -60,22 +60,22 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBmfYcPA_EhjPBPQ5ajxbEqTYN-cKNhIhQ',
-    appId: '1:762822830497:ios:28f2caf19143e5e9d143e0',
+    appId: '1:762822830497:ios:8a5d830d1943e045d143e0',
     messagingSenderId: '762822830497',
     projectId: 'pilates-studio-da2a9',
     storageBucket: 'pilates-studio-da2a9.firebasestorage.app',
-    iosClientId: '762822830497-ej7r0v713npjbuahtfrlv35v1ifd8l0j.apps.googleusercontent.com',
-    iosBundleId: 'com.example.pilatesApp',
+    iosClientId: '762822830497-6b6s9fet37425mv977pdvdnek2gounn0.apps.googleusercontent.com',
+    iosBundleId: 'com.crumbtech.pilatesstudiolilla',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBmfYcPA_EhjPBPQ5ajxbEqTYN-cKNhIhQ',
-    appId: '1:762822830497:ios:28f2caf19143e5e9d143e0',
+    appId: '1:762822830497:ios:8a5d830d1943e045d143e0',
     messagingSenderId: '762822830497',
     projectId: 'pilates-studio-da2a9',
     storageBucket: 'pilates-studio-da2a9.firebasestorage.app',
-    iosClientId: '762822830497-ej7r0v713npjbuahtfrlv35v1ifd8l0j.apps.googleusercontent.com',
-    iosBundleId: 'com.example.pilatesApp',
+    iosClientId: '762822830497-6b6s9fet37425mv977pdvdnek2gounn0.apps.googleusercontent.com',
+    iosBundleId: 'com.crumbtech.pilatesstudiolilla',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

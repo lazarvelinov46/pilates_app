@@ -31,10 +31,10 @@
               "client_type": 3
             },
             {
-              "client_id": "762822830497-ej7r0v713npjbuahtfrlv35v1ifd8l0j.apps.googleusercontent.com",
+              "client_id": "762822830497-6b6s9fet37425mv977pdvdnek2gounn0.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.pilatesApp"
+                "bundle_id": "com.crumbtech.pilatesstudiolilla"
               }
             }
           ]
