@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Pilates Studio Lilla</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --ink-soft: #555;
+      --ink-muted: #888;
+      --bg: #faf9f6;
+      --rule: #e0ddd6;
+      --accent: #8b6f5e;
+      --accent-light: #f0ece6;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--rule);
+      padding: 3rem 2rem 2.5rem;
+      text-align: center;
+      background: var(--bg);
+    }
+
+    .studio-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1rem, 3vw, 1.15rem);
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 6vw, 3.5rem);
+      font-weight: 300;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .meta {
+      margin-top: 1.25rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .wrapper {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    /* ── TOC ─────────────────────────────────────────────── */
+    .toc {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 1.5rem 2rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .toc-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+
+    .toc ol {
+      padding-left: 1.2rem;
+    }
+
+    .toc li {
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .toc a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Sections ───────────────────────────────────────── */
+    section {
+      margin-bottom: 3rem;
+      padding-top: 0.5rem;
+    }
+
+    section + section {
+      border-top: 1px solid var(--rule);
+      padding-top: 2.5rem;
+    }
+
+    h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.55rem;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+
+    h2 .num {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    p {
+      font-size: 0.96rem;
+      color: var(--ink-soft);
+      margin-bottom: 1rem;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      padding-left: 1.4rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      font-size: 0.96rem;
+      color: var(--ink-soft);
+      margin-bottom: 0.4rem;
+    }
+
+    strong {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* ── Highlight box ──────────────────────────────────── */
+    .callout {
+      background: var(--accent-light);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.25rem 0;
+    }
+
+    .callout p {
+      margin: 0;
+      font-size: 0.92rem;
+    }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    footer p {
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      margin: 0;
+    }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .wrapper { padding: 2.5rem 1.25rem 4rem; }
+      header { padding: 2rem 1.25rem 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="studio-name">Pilates Studio Lilla</div>
+    <h1>Privacy <em>Policy</em></h1>
+    <p class="meta">Effective date: April 2026 &nbsp;·&nbsp; Last updated: April 2026</p>
+  </header>
+
+  <div class="wrapper">
+
+    <div class="toc">
+      <div class="toc-title">Contents</div>
+      <ol>
+        <li><a href="#s1">Information We Collect</a></li>
+        <li><a href="#s2">How We Use Your Information</a></li>
+        <li><a href="#s3">Data Storage & Security</a></li>
+        <li><a href="#s4">Push Notifications</a></li>
+        <li><a href="#s5">Third-Party Services</a></li>
+        <li><a href="#s6">Data Retention</a></li>
+        <li><a href="#s7">Your Rights</a></li>
+        <li><a href="#s8">Children's Privacy</a></li>
+        <li><a href="#s9">Changes to This Policy</a></li>
+        <li><a href="#s10">Contact Us</a></li>
+      </ol>
+    </div>
+
+    <section>
+      <p>
+        This Privacy Policy describes how <strong>Pilates Studio Lilla</strong> ("we", "us", or "our") collects,
+        uses, and protects information when you use our mobile application (the "App"). By using the App,
+        you agree to the practices described in this policy.
+      </p>
+    </section>
+
+    <section id="s1">
+      <h2><span class="num">01</span> Information We Collect</h2>
+      <p>We collect the following personal information when you register or use the App:</p>
+      <ul>
+        <li><strong>Account information</strong> — your name, surname, and email address, provided during registration.</li>
+        <li><strong>Authentication data</strong> — your email and encrypted password, managed securely by Firebase Authentication.</li>
+        <li><strong>Booking records</strong> — session bookings you make, including session date, time, and booking status.</li>
+        <li><strong>Promotion data</strong> — details of session packages you have purchased, including usage history.</li>
+        <li><strong>Session ratings</strong> — optional star ratings and comments you submit after attending sessions.</li>
+        <li><strong>Notification preferences</strong> — your choice to enable or disable push notifications within the App.</li>
+        <li><strong>Device token</strong> — a Firebase Cloud Messaging (FCM) token used solely to deliver push notifications to your device.</li>
+      </ul>
+      <p>We do <strong>not</strong> collect payment information, location data, or any data beyond what is listed above.</p>
+    </section>
+
+    <section id="s2">
+      <h2><span class="num">02</span> How We Use Your Information</h2>
+      <p>We use the information we collect solely to provide and improve the App's functionality:</p>
+      <ul>
+        <li>To create and manage your account.</li>
+        <li>To process and display your session bookings and cancellations.</li>
+        <li>To manage your session promotion credits accurately.</li>
+        <li>To send push notifications about booking confirmations, session reminders, and studio cancellations — only if you have enabled them.</li>
+        <li>To allow studio administrators to manage sessions and view attendance.</li>
+        <li>To improve the quality of our classes through aggregated, anonymous ratings data.</li>
+      </ul>
+      <p>We do <strong>not</strong> sell, rent, or share your personal data with any third party for marketing purposes.</p>
+    </section>
+
+    <section id="s3">
+      <h2><span class="num">03</span> Data Storage & Security</h2>
+      <p>
+        Your data is stored in <strong>Google Firebase Firestore</strong>, a cloud database provided by Google LLC,
+        with servers located in the United States and the European Union. Firebase is compliant with GDPR and
+        other major data protection frameworks.
+      </p>
+      <div class="callout">
+        <p>
+          Access to your data is protected by Firebase security rules. Only you can read and modify your own
+          account data. Studio administrators can view booking and attendance data necessary for operating the studio,
+          but cannot access your password or payment information.
+        </p>
+      </div>
+      <p>
+        Passwords are never stored in plain text — they are managed entirely by Firebase Authentication using
+        industry-standard encryption. We take reasonable technical measures to protect your data, though no
+        transmission over the internet is 100% secure.
+      </p>
+    </section>
+
+    <section id="s4">
+      <h2><span class="num">04</span> Push Notifications</h2>
+      <p>
+        The App may send push notifications to your device using <strong>Firebase Cloud Messaging (FCM)</strong>.
+        Notifications are used for:
+      </p>
+      <ul>
+        <li>Booking confirmation messages.</li>
+        <li>Reminders before an upcoming session.</li>
+        <li>Studio-initiated session cancellation notices with credit refund confirmation.</li>
+      </ul>
+      <p>
+        You can disable push notifications at any time through the App's Preferences screen, or through
+        your device's system notification settings. Disabling notifications does not affect your ability
+        to use any other feature of the App.
+      </p>
+    </section>
+
+    <section id="s5">
+      <h2><span class="num">05</span> Third-Party Services</h2>
+      <p>The App uses the following third-party services, each governed by their own privacy policies:</p>
+      <ul>
+        <li>
+          <strong>Google Firebase</strong> (Authentication, Firestore, Cloud Messaging, Cloud Functions) —
+          <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">firebase.google.com/support/privacy</a>
+        </li>
+        <li>
+          <strong>Google Sign-In</strong> — used optionally for account authentication —
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>
+        </li>
+      </ul>
+      <p>We do not integrate with any advertising networks, analytics services, or data brokers.</p>
+    </section>
+
+    <section id="s6">
+      <h2><span class="num">06</span> Data Retention</h2>
+      <p>
+        We retain your personal data for as long as your account is active. If you request account deletion,
+        we will remove your personal information from our systems within 30 days, except where retention is
+        required by applicable law. Anonymised or aggregated data (such as general session attendance counts)
+        may be retained indefinitely.
+      </p>
+    </section>
+
+    <section id="s7">
+      <h2><span class="num">07</span> Your Rights</h2>
+      <p>Depending on your jurisdiction, you may have the right to:</p>
+      <ul>
+        <li><strong>Access</strong> — request a copy of the personal data we hold about you.</li>
+        <li><strong>Correction</strong> — ask us to correct inaccurate data.</li>
+        <li><strong>Deletion</strong> — request that we delete your account and associated data.</li>
+        <li><strong>Portability</strong> — request your data in a portable format.</li>
+        <li><strong>Objection</strong> — object to specific uses of your data.</li>
+      </ul>
+      <p>
+        To exercise any of these rights, please contact us at the email address below. We will respond
+        within 30 days.
+      </p>
+    </section>
+
+    <section id="s8">
+      <h2><span class="num">08</span> Children's Privacy</h2>
+      <p>
+        The App is not directed to children under the age of 13. We do not knowingly collect personal
+        information from children under 13. If you believe a child has provided us with their data,
+        please contact us and we will promptly delete that information.
+      </p>
+    </section>
+
+    <section id="s9">
+      <h2><span class="num">09</span> Changes to This Policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time. When we do, we will revise the "Last updated"
+        date at the top of this page. If changes are material, we will notify you through the App. Continued
+        use of the App after changes constitutes your acceptance of the updated policy.
+      </p>
+    </section>
+
+    <section id="s10">
+      <h2><span class="num">10</span> Contact Us</h2>
+      <p>
+        If you have questions, concerns, or requests regarding this Privacy Policy or your personal data,
+        please contact us:
+      </p>
+      <div class="callout">
+        <p>
+          <strong>Pilates Studio Lilla</strong><br>
+          Email: <a href="mailto:pilatesstudiolilla@gmail.com">pilatesstudiolilla@gmail.com</a><br>
+          Instagram: <a href="https://instagram.com/pilatesstudio_lilla" target="_blank" rel="noopener">@pilatesstudio_lilla</a>
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="footer-logo">Pilates Studio Lilla</div>
+    <p>&copy; 2026 Pilates Studio Lilla. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>
