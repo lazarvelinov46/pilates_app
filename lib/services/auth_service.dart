@@ -220,11 +220,13 @@ class AuthService {
       await batch.commit();
     }
 
-    // ── Write email tombstone if trial was used ────────────────────────────
-    if (trialUsed && email.isNotEmpty) {
+    // ── Write email tombstone (always, to overwrite any previous entry) ──────
+    // Always overwrite so a second deletion reflects the current trial status
+    // rather than leaving a stale `trialSessionUsed: true` from a prior cycle.
+    if (email.isNotEmpty) {
       await _db.collection('deleted_accounts').doc(email).set({
         'email': email,
-        'trialSessionUsed': true,
+        'trialSessionUsed': trialUsed,
         'deletedAt': Timestamp.now(),
       });
     }
