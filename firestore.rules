@@ -23,7 +23,7 @@ service cloud.firestore {
       allow read, update:         if isAdmin();
       // Admins need to list users for the promotions search screen
       allow list:                 if isAdmin();
-      allow delete:               if false;
+      allow delete:               if isOwner(userId);
 
       // ── Notifications subcollection ──────────────────────────────────────
       // Users read and write their own notification documents (booking
@@ -68,6 +68,18 @@ service cloud.firestore {
       // Admin can update any booking
       allow update: if isAdmin();
 
+      allow delete: if false;
+    }
+
+    // ---------------- DELETED ACCOUNTS ----------------
+    // Stores a minimal tombstone {email, trialSessionUsed, deletedAt} so that
+    // the free-trial restriction carries over if a user re-registers after
+    // deleting their account. The document ID is the lowercased email address.
+    // Only a signed-in user may write their own tombstone; reads are denied
+    // (the check on re-registration is done server-side via the Auth SDK).
+    match /deleted_accounts/{email} {
+      allow read, create, update: if isSignedIn()
+        && request.auth.token.email.lower() == email;
       allow delete: if false;
     }
 

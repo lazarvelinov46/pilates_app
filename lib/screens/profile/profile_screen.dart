@@ -7,7 +7,7 @@ import '../../models/user_model.dart';
 import '../../models/promotion_model.dart';
 import '../../models/user_preferences_model.dart';
 import '../../services/user_service.dart';
-import '../../services/auth_service.dart';
+import '../../services/auth_service.dart' show AuthService, ReauthCancelledException;
 import '../../theme.dart';
 import '../login_screen.dart';
 
@@ -227,6 +227,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── Delete Account ─────────────────────────────────────────────────────────
+
+  bool _isGoogleUser() {
+    return FirebaseAuth.instance.currentUser?.providerData
+            .any((p) => p.providerId == 'google.com') ??
+        false;
+  }
+
+  Future<void> _performDeleteAccount({String? password}) async {
+    try {
+      await _authService.deleteAccount(password: password);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(authService: _authService),
+        ),
+        (_) => false,
+      );
+    } on ReauthCancelledException {
+      // User cancelled Google sign-in — do nothing.
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final isGoogle = _isGoogleUser();
+
+    if (isGoogle) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text(
+            'This will permanently delete your account and all your data, '
+            'including upcoming bookings.\n\n'
+            'You will be asked to sign in with Google to confirm.\n\n'
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style:
+                  TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+              child: const Text('Delete Account'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) await _performDeleteAccount();
+      return;
+    }
+
+    // Email/password — ask for password to confirm.
+    final passwordController = TextEditingController();
+    bool obscure = true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Delete Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This will permanently delete your account and all your data, '
+                'including upcoming bookings.\n\n'
+                'This action cannot be undone.',
+              ),
+              const SizedBox(height: 16),
+              const Text('Enter your password to confirm:',
+                  style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passwordController,
+                obscureText: obscure,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  suffixIcon: IconButton(
+                    icon: Icon(obscure
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined),
+                    onPressed: () => setSt(() => obscure = !obscure),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style:
+                  TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+              child: const Text('Delete Account'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Capture the value before disposal, then defer disposal to after the
+    // dialog's dismiss animation finishes — disposing during the animation
+    // causes a "controller used after dispose" crash.
+    final password = passwordController.text;
+    WidgetsBinding.instance.addPostFrameCallback((_) => passwordController.dispose());
+
+    if (confirmed == true) {
+      await _performDeleteAccount(password: password);
+    }
+  }
+
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
@@ -351,6 +480,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () => _showPreferencesSheet(user.preferences),
               ),
 
+              _ProfileTile(
+                icon: Icons.delete_forever_outlined,
+                title: 'Delete Account',
+                subtitle: 'Permanently remove your account and data',
+                onTap: _showDeleteAccountDialog,
+                isDestructive: true,
+              ),
+
               const SizedBox(height: 24),
 
               // ── History Section ────────────────────────────────────────
@@ -413,21 +550,27 @@ class _ProfileTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
+  final bool isDestructive;
 
   const _ProfileTile({
     required this.icon,
     required this.title,
     this.subtitle,
     required this.onTap,
+    this.isDestructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = isDestructive ? AppTheme.errorRed : AppTheme.primary;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(icon, color: AppTheme.primary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        leading: Icon(icon, color: color),
+        title: Text(title,
+            style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: isDestructive ? AppTheme.errorRed : null)),
         subtitle: subtitle != null
             ? Text(subtitle!,
                 style: TextStyle(
