@@ -36,7 +36,7 @@ class AuthService {
     await user.updateDisplayName('$name $surname');
     await user.sendEmailVerification();
 
-    final trialUsed = await _wasTrialUsedBeforeDeletion(email);
+    final status = await _getDeletedAccountStatus(email);
 
     final appUser = AppUser(
       uid: user.uid,
@@ -46,10 +46,14 @@ class AuthService {
       email: email,
       createdAt: DateTime.now(),
       preferences: UserPreferences.defaultPreferences(),
-      trialSessionUsed: trialUsed,
+      trialSessionUsed: status.trialSessionUsed,
     );
 
     await _db.collection('users').doc(user.uid).set(appUser.toMap());
+
+    if (!status.isReturning) {
+      await _assignWelcomePromotion(user.uid);
+    }
   }
 
   /// Reloads the Firebase Auth token and checks the verified flag.
@@ -103,7 +107,7 @@ class AuthService {
     final doc = await _db.collection('users').doc(user.uid).get();
 
     if (!doc.exists) {
-      final trialUsed = await _wasTrialUsedBeforeDeletion(user.email ?? '');
+      final status = await _getDeletedAccountStatus(user.email ?? '');
       final newUser = AppUser(
         uid: user.uid,
         role: UserRole.user,
@@ -112,9 +116,14 @@ class AuthService {
         email: user.email ?? '',
         createdAt: DateTime.now(),
         preferences: UserPreferences.defaultPreferences(),
-        trialSessionUsed: trialUsed,
+        trialSessionUsed: status.trialSessionUsed,
       );
       await _db.collection('users').doc(user.uid).set(newUser.toMap());
+
+      if (!status.isReturning) {
+        await _assignWelcomePromotion(user.uid);
+      }
+
       return newUser;
     }
 
@@ -129,14 +138,52 @@ class AuthService {
     return AppUser.fromFirestore(doc);
   }
 
-  /// Returns true if a previous account with this email had used the trial
-  /// session before being deleted. Used to prevent trial abuse on re-signup.
-  Future<bool> _wasTrialUsedBeforeDeletion(String email) async {
+  /// Reads the deleted_accounts tombstone for [email] once and returns both
+  /// whether the address ever belonged to an account (`isReturning`) and
+  /// whether the trial was consumed (`trialSessionUsed`). A single read
+  /// covers both registration-time checks.
+  Future<({bool isReturning, bool trialSessionUsed})> _getDeletedAccountStatus(
+      String email) async {
     final doc = await _db
         .collection('deleted_accounts')
         .doc(email.toLowerCase())
         .get();
-    return doc.exists && (doc.data()?['trialSessionUsed'] as bool? ?? false);
+    return (
+      isReturning: doc.exists,
+      trialSessionUsed:
+          doc.exists && (doc.data()?['trialSessionUsed'] as bool? ?? false),
+    );
+  }
+
+  /// Looks up the "Lilla Welcome" package and adds a 30-day promotion to the
+  /// newly created user document. Silently does nothing if the package has not
+  /// been configured by an admin yet.
+  Future<void> _assignWelcomePromotion(String uid) async {
+    final packagesSnap = await _db
+        .collection('packages')
+        .where('name', isEqualTo: 'Lilla Welcome')
+        .limit(1)
+        .get();
+
+    if (packagesSnap.docs.isEmpty) return;
+
+    final packageDoc = packagesSnap.docs.first;
+    final packageData = packageDoc.data();
+    final now = DateTime.now();
+
+    final newPromo = {
+      'packageId': packageDoc.id,
+      'packageName': packageData['name'] as String,
+      'totalSessions': packageData['numberOfSessions'] as int,
+      'booked': 0,
+      'attended': 0,
+      'expiresAt': Timestamp.fromDate(now.add(const Duration(days: 30))),
+      'createdAt': Timestamp.fromDate(now),
+    };
+
+    await _db.collection('users').doc(uid).update({
+      'promotions': [newPromo],
+    });
   }
 
   // ── Password reset ────────────────────────────────────────────────────────
