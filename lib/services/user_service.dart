@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/package_model.dart';
+import '../models/promotion_assignment_model.dart';
 import '../models/user_model.dart';
 import '../models/user_preferences_model.dart';
 
@@ -167,6 +168,10 @@ class UserService {
     required String userId,
     required Package package,
     required DateTime expiresAt,
+    required String assignedByUid,
+    required String assignedByName,
+    required String targetUserName,
+    required String targetUserEmail,
   }) async {
     final userRef = _db.collection('users').doc(userId);
     final now = DateTime.now();
@@ -247,5 +252,20 @@ class UserService {
     if (trialBookingRef != null) {
       await trialBookingRef.update({'promotionCreatedAt': promoCreatedAt});
     }
+
+    // Record the assignment for owner audit history.
+    final assignment = PromotionAssignment(
+      id: '',
+      assignedByUid: assignedByUid,
+      assignedByName: assignedByName,
+      packageId: package.id,
+      packageName: package.name,
+      numberOfSessions: package.numberOfSessions,
+      targetUserId: userId,
+      targetUserName: targetUserName,
+      targetUserEmail: targetUserEmail,
+      assignedAt: now,
+    );
+    await _db.collection('promotion_assignments').add(assignment.toMap());
   }
 }

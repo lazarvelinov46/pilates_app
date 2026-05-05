@@ -141,8 +141,9 @@ class _LoginScreenState extends State<LoginScreen>
 
         if (!mounted) return;
 
-        final target = appUser.role == UserRole.admin
-            ? const AdminShell()
+        final target = (appUser.role == UserRole.admin ||
+                appUser.role == UserRole.owner)
+            ? AdminShell(role: appUser.role)
             : const MainShell();
 
         Navigator.of(context).pushReplacement(

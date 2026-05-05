@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'promotion_model.dart';
 import 'user_preferences_model.dart';
 
-enum UserRole { user, admin }
+enum UserRole { user, admin, owner }
 
 class AppUser {
   final String uid;
@@ -71,7 +71,11 @@ class AppUser {
 
     return AppUser(
       uid: doc.id,
-      role: data['role'] == 'admin' ? UserRole.admin : UserRole.user,
+      role: data['role'] == 'admin'
+          ? UserRole.admin
+          : data['role'] == 'owner'
+              ? UserRole.owner
+              : UserRole.user,
       name: data['name'] ?? '',
       surname: data['surname'] ?? '',
       email: data['email'] ?? '',

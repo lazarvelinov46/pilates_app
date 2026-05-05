@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/package_model.dart';
+import '../../services/auth_service.dart';
 import '../../services/package_service.dart';
 import '../../services/user_service.dart';
 import '../../theme.dart';
@@ -17,6 +18,23 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
   bool _searching = false;
+  String _assignerUid = '';
+  String _assignerName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAssignerInfo();
+  }
+
+  Future<void> _loadAssignerInfo() async {
+    final appUser = await AuthService().getCurrentAppUser();
+    if (appUser == null) return;
+    setState(() {
+      _assignerUid = appUser.uid;
+      _assignerName = '${appUser.name} ${appUser.surname}'.trim();
+    });
+  }
 
   @override
   void dispose() {
@@ -86,7 +104,15 @@ class _AdminPromotionsScreenState extends State<AdminPromotionsScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate() || expiresAt == null) return;
-                await _userService.assignPromotionFromPackage(userId: user['uid'], package: selectedPkg!, expiresAt: expiresAt!);
+                await _userService.assignPromotionFromPackage(
+                  userId: user['uid'],
+                  package: selectedPkg!,
+                  expiresAt: expiresAt!,
+                  assignedByUid: _assignerUid,
+                  assignedByName: _assignerName,
+                  targetUserName: '${user['name']} ${user['surname']}',
+                  targetUserEmail: user['email'],
+                );
                 if (dCtx.mounted) {
                   Navigator.pop(dCtx);
                   ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Promotion assigned to ${user['email']}')));

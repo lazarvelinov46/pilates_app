@@ -82,8 +82,9 @@ class AuthGate extends StatelessWidget {
             }
 
             final appUser = userSnapshot.data!;
-            if (appUser.role == UserRole.admin) {
-              return const AdminShell();
+            if (appUser.role == UserRole.admin ||
+                appUser.role == UserRole.owner) {
+              return AdminShell(role: appUser.role);
             } else {
               return const MainShell();
             }

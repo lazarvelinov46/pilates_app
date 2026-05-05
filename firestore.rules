@@ -7,50 +7,57 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
+    // True when the authenticated user is the owner of the document (uid match).
+    // Named isDocOwner to avoid collision with the 'owner' role concept below.
+    function isDocOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function _callerRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
     function isAdmin() {
-      return isSignedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid))
-           .data.role == 'admin';
+      return isSignedIn() && _callerRole() == 'admin';
+    }
+
+    function isOwnerRole() {
+      return isSignedIn() && _callerRole() == 'owner';
+    }
+
+    // Owner role has all admin privileges plus extras.
+    function isAdminOrOwner() {
+      return isSignedIn() && _callerRole() in ['admin', 'owner'];
     }
 
     // ---------------- USERS ----------------
     match /users/{userId} {
-      allow read, create, update: if isOwner(userId);
-      allow read, update:         if isAdmin();
-      // Admins need to list users for the promotions search screen
-      allow list:                 if isAdmin();
-      allow delete:               if isOwner(userId);
+      allow read, create, update: if isDocOwner(userId);
+      allow read, update:         if isAdminOrOwner();
+      allow list:                 if isAdminOrOwner();
+      allow delete:               if isDocOwner(userId);
 
       // ── Notifications subcollection ──────────────────────────────────────
-      // Users read and write their own notification documents (booking
-      // confirmations, etc.). Cloud Functions use the Admin SDK and bypass
-      // these rules entirely, so admin-cancellation notifications always work.
       match /notifications/{notificationId} {
-        allow read, create: if isOwner(userId);
-        allow update:       if isOwner(userId); // mark-as-read
-        allow delete:       if isOwner(userId);
+        allow read, create: if isDocOwner(userId);
+        allow update:       if isDocOwner(userId);
+        allow delete:       if isDocOwner(userId);
       }
     }
 
     // ---------------- SESSIONS ----------------
     match /sessions/{sessionId} {
       allow read:          if isSignedIn();
-      allow create:        if isAdmin();
-      allow delete:        if isAdmin();
-      // Signed-in users need update access so the booking/cancel
-      // transaction can increment or decrement bookedCount on the client.
-      // The transaction validates capacity and active status before writing.
+      allow create:        if isAdminOrOwner();
+      allow delete:        if isAdminOrOwner();
       allow update:        if isSignedIn();
     }
 
+    // ---------------- BOOKINGS ----------------
     match /bookings/{bookingId} {
       allow get:    if isSignedIn() && resource.data.userId == request.auth.uid;
       allow list:   if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow read:   if isAdmin();
+      allow read:   if isAdminOrOwner();
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
 
@@ -65,8 +72,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['attendanceRecorded']);
 
-      // Admin can update any booking
-      allow update: if isAdmin();
+      // Admin or owner can update any booking
+      allow update: if isAdminOrOwner();
 
       allow delete: if false;
     }
@@ -85,19 +92,25 @@ service cloud.firestore {
 
     // ---------------- PACKAGES ----------------
     match /packages/{packageId} {
-      allow read:          if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow read:                    if isSignedIn();
+      allow create, update, delete:  if isAdminOrOwner();
     }
 
     // ---------------- RATINGS ----------------
     match /ratings/{ratingId} {
-      // Users can read their own ratings; admins can read all
-      allow read: if isAdmin() ||
+      allow read: if isAdminOrOwner() ||
         (isSignedIn() && resource.data.userId == request.auth.uid);
-      // User can only create a rating for themselves
       allow create: if isSignedIn() &&
         request.resource.data.userId == request.auth.uid;
-      // No updates or deletes — ratings are immutable
+      allow update, delete: if false;
+    }
+
+    // ---------------- PROMOTION ASSIGNMENTS ----------------
+    // Written whenever admin or owner assigns a promotion to a user.
+    // Only the owner role can read them (the Assignments screen).
+    match /promotion_assignments/{assignmentId} {
+      allow read:          if isOwnerRole();
+      allow create:        if isAdminOrOwner();
       allow update, delete: if false;
     }
   }
