@@ -26,7 +26,7 @@ class _AdminShellState extends State<AdminShell> {
   void initState() {
     super.initState();
     _screens = [
-      const AdminPackagesScreen(),
+      AdminPackagesScreen(canEdit: widget.role == UserRole.owner),
       const AdminPromotionsScreen(),
       const AdminSessionsScreen(),
       const AdminRatingsScreen(),

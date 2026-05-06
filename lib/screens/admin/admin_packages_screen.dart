@@ -4,7 +4,8 @@ import '../../services/package_service.dart';
 import '../../theme.dart';
 
 class AdminPackagesScreen extends StatelessWidget {
-  const AdminPackagesScreen({super.key});
+  final bool canEdit;
+  const AdminPackagesScreen({super.key, this.canEdit = false});
 
   @override
   Widget build(BuildContext context) {
@@ -28,20 +29,24 @@ class AdminPackagesScreen extends StatelessWidget {
                           leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
                           title: Text(pkg.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('${pkg.numberOfSessions} sessions'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => _showDialog(context, service, pkg)),
-                              IconButton(icon: Icon(Icons.delete_outline, color: AppTheme.errorRed), onPressed: () => _confirmDelete(context, service, pkg)),
-                            ],
-                          ),
+                          trailing: canEdit
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => _showDialog(context, service, pkg)),
+                                    IconButton(icon: Icon(Icons.delete_outline, color: AppTheme.errorRed), onPressed: () => _confirmDelete(context, service, pkg)),
+                                  ],
+                                )
+                              : null,
                         );
                       }),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showDialog(context, service, null),
-            icon: const Icon(Icons.add),
-            label: const Text('New Package'),
-          ),
+          floatingActionButton: canEdit
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showDialog(context, service, null),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Package'),
+                )
+              : null,
         );
       },
     );
