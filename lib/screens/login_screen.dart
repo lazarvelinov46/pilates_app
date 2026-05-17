@@ -141,6 +141,23 @@ class _LoginScreenState extends State<LoginScreen>
 
         if (!mounted) return;
 
+        // Guard: if the account exists but e-mail is not yet verified,
+        // send the user to the verification screen instead of the app.
+        // This can happen when the user registered previously and tries
+        // to sign in without having verified first.
+        final firebaseUser = widget.authService.currentFirebaseUser;
+        if (firebaseUser != null && !firebaseUser.emailVerified) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => VerificationScreen(
+                authService: widget.authService,
+                email: firebaseUser.email ?? '',
+              ),
+            ),
+          );
+          return;
+        }
+
         final target = (appUser.role == UserRole.admin ||
                 appUser.role == UserRole.owner)
             ? AdminShell(role: appUser.role)

@@ -69,6 +69,21 @@ class AuthService {
     await user.sendEmailVerification();
   }
 
+  /// Cancels an incomplete registration: deletes the Firestore user document
+  /// first (while still authenticated), then deletes the Firebase Auth account
+  /// so the email address is free to be re-registered.
+  ///
+  /// Throws if the Auth deletion fails (e.g. requires re-authentication after
+  /// a long session). Callers should sign the user out as a fallback.
+  Future<void> cancelUnverifiedRegistration() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await _db.collection('users').doc(user.uid).delete();
+    } catch (_) {}
+    await user.delete();
+  }
+
   // ── Email + password login ────────────────────────────────────────────────
 
   Future<AppUser> signInWithEmail({

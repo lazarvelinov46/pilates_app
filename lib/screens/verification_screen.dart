@@ -110,10 +110,16 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   Future<void> _cancelAndGoBack() async {
-    // Delete the unverified account so the email is free to re-register.
     try {
-      await FirebaseAuth.instance.currentUser?.delete();
-    } catch (_) {}
+      await widget.authService.cancelUnverifiedRegistration();
+    } catch (_) {
+      // Auth deletion can require re-authentication after a long session.
+      // Sign out so the email is freed on next app start and the user lands
+      // on the login screen rather than being stuck on this screen.
+      try {
+        await widget.authService.signOut();
+      } catch (_) {}
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -135,7 +141,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _cancelAndGoBack();
+      },
+      child: Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -297,6 +309,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
