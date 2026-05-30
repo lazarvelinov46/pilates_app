@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/user_model.dart';
@@ -14,6 +13,7 @@ import '../../../services/session_service.dart';
 import '../../../services/user_service.dart';
 import '../../../services/rating_service.dart';
 import '../../../theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../booking/widgets/session_card.dart';
 import 'widgets/completed_sessions_sheet.dart';
 
@@ -71,24 +71,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _cancelBooking(Booking booking) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel session?'),
-        content: Text(
-          'Are you sure you want to cancel your session on '
-          '${booking.formattedDateTime}?\n\n'
-          '${booking.canCancel() ? 'Your session credit will be returned to your promotion.' : 'Note: cancellation is within 12 hours of the session — your credit will NOT be refunded.'}',
-        ),
+        title: Text(l10n.cancelSessionTitle),
+        content: Text(l10n.cancelSessionPrompt(
+            booking.formattedDateTime, booking.canCancel())),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep it'),
+            child: Text(l10n.keepItButton),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-            child: const Text('Yes, cancel'),
+            child: Text(l10n.yesCancelButton),
           ),
         ],
       ),
@@ -98,17 +96,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       await _bookingService.cancelBooking(booking: booking);
+      await _notificationService.cancelSessionReminders(booking.sessionId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session cancelled')),
+          SnackBar(content: Text(AppLocalizations.of(context).sessionCancelled)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(AppLocalizations.of(context)
+                .errorMsg(e.toString().replaceFirst('Exception: ', ''))),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -117,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _quickBook(Session session) async {
+    final l10n = AppLocalizations.of(context);
     try {
       await _bookingService.bookSession(
         userId: userId,
@@ -127,9 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Booked for ${DateFormat('EEE dd MMM • HH:mm').format(session.startsAt)}',
-            ),
+            content: Text(l10n.bookedFor(
+                DateFormat('EEE dd MMM • HH:mm').format(session.startsAt))),
             backgroundColor: AppTheme.successGreen,
           ),
         );
@@ -139,8 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Booking failed: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(AppLocalizations.of(context).bookingFailed(
+                e.toString().replaceFirst('Exception: ', ''))),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -180,8 +179,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
+      appBar: AppBar(title: Text(l10n.homeTitle)),
       body: StreamBuilder<AppUser>(
         stream: _userService.getUserStream(userId),
         builder: (context, userSnap) {
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final user = userSnap.data;
           if (user == null) {
-            return const Center(child: Text('Unable to load profile'));
+            return Center(child: Text(l10n.unableToLoadProfile));
           }
           return StreamBuilder<List<Booking>>(
             stream: _bookingService.getUpcomingBookingsStream(userId),
@@ -222,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         if (upcomingBookings.isNotEmpty) ...[
                           Text(
-                            'Your upcoming sessions',
+                            l10n.yourUpcomingSessions,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -247,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Row(
                             children: [
                               Text(
-                                'Quick book',
+                                l10n.quickBook,
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium
@@ -255,17 +255,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(width: 8),
                               Chip(
-                                label: const Text('Upcoming sessions'),
+                                label: Text(l10n.upcomingSessionsChip),
                                 visualDensity: VisualDensity.compact,
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'You have no sessions booked yet.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall,
+                            l10n.noSessionsBookedYet,
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 12),
                           if (_loadingQuickBook)
@@ -365,6 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
     VoidCallback? onTap,
     required bool isHistory,
   }) {
+    final l10n = AppLocalizations.of(context);
     final total = promotion.totalSessions;
     final booked = promotion.booked;
     final attended = promotion.attended;
@@ -419,22 +418,22 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               if (isHistory)
                 _StatusBadge(
-                    label: 'Completed',
+                    label: l10n.statusCompleted,
                     color: AppTheme.historySlate,
                     bgColor: AppTheme.historySlateContainer)
               else if (isExpired)
                 _StatusBadge(
-                    label: 'Expired',
+                    label: l10n.statusExpired,
                     color: AppTheme.errorRed,
                     bgColor: AppTheme.errorRedContainer)
               else if (isExhausted)
                 _StatusBadge(
-                    label: 'Used up',
+                    label: l10n.statusUsedUp,
                     color: AppTheme.warningOrange,
                     bgColor: AppTheme.warningOrangeContainer)
               else
                 _StatusBadge(
-                  label: '${promotion.remaining} left',
+                  label: l10n.nLeft(promotion.remaining),
                   color: AppTheme.successGreen,
                   bgColor: AppTheme.successGreenContainer,
                 ),
@@ -442,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Expires ${DateFormat('dd MMM yyyy').format(promotion.expiresAt)}',
+            l10n.expiresOn(DateFormat('dd MMM yyyy').format(promotion.expiresAt)),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: (!isHistory && isExpired)
                       ? AppTheme.errorRed
@@ -463,13 +462,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Text(
-                '$used / $total sessions used',
+                l10n.sessionsUsed(used, total),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const Spacer(),
               if (!isInactive)
                 Text(
-                  '$attended attended · $booked upcoming',
+                  l10n.attendedUpcoming(attended, booked),
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -496,6 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Last completed session card ───────────────────────────────────────────
 
   Widget _buildLastCompletedSessionCard(BuildContext context, AppUser user) {
+    final l10n = AppLocalizations.of(context);
     final last = _completedBookings.first;
     final existingRating = _ratingsMap[last.sessionId];
     final isRated = existingRating != null;
@@ -504,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Last session',
+          l10n.lastSession,
           style: Theme.of(context)
               .textTheme
               .titleMedium
@@ -575,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Rated',
+                    l10n.ratedBadge,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -586,7 +586,7 @@ class _HomeScreenState extends State<HomeScreen> {
               else
                 OutlinedButton.icon(
                   icon: const Icon(Icons.star_outline, size: 16),
-                  label: const Text('Rate'),
+                  label: Text(l10n.rateButton),
                   onPressed: () =>
                       _openRateDialogForBooking(context, last, user),
                   style: OutlinedButton.styleFrom(
@@ -605,19 +605,20 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── No-promotion banner ───────────────────────────────────────────────────
 
   Widget _buildNoPromotionBanner(BuildContext context, AppUser user) {
+    final l10n = AppLocalizations.of(context);
     if (user.hasActivePromotion) return const SizedBox.shrink();
 
     final msg = user.promotions.isNotEmpty
         ? user.promotions.any((p) => p.isExpired && p.remaining > 0)
-            ? 'Your promotion has expired.'
-            : 'You have used all sessions in your promotions.'
-        : 'You have no active promotion.';
+            ? l10n.promotionExpired
+            : l10n.allSessionsUsed
+        : l10n.noActivePromotion;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Sessions',
+          l10n.sessionsSection,
           style: Theme.of(context)
               .textTheme
               .titleMedium
@@ -643,7 +644,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                         color: AppTheme.textColor.withValues(alpha: 0.55))),
                 const SizedBox(height: 4),
-                Text('Contact us to get a new promotion.',
+                Text(l10n.contactForNewPromotion,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         color: AppTheme.textColor.withValues(alpha: 0.4),
@@ -662,6 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class _NoPromotionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerHigh,
@@ -679,12 +681,12 @@ class _NoPromotionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('No active promotion',
+                Text(l10n.noActivePromotionCard,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textColor.withValues(alpha: 0.55))),
                 const SizedBox(height: 4),
-                Text('Contact us to purchase a session package.',
+                Text(l10n.contactToPurchase,
                     style: TextStyle(
                         color: AppTheme.textColor.withValues(alpha: 0.5),
                         fontSize: 13)),
@@ -700,6 +702,7 @@ class _NoPromotionCard extends StatelessWidget {
 class _TrialSessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
@@ -725,7 +728,7 @@ class _TrialSessionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Trial session booked',
+                  l10n.trialSessionBooked,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: cs.secondary,
@@ -733,8 +736,7 @@ class _TrialSessionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Contact the studio to purchase a package — '
-                  'your trial session will be counted as the first one.',
+                  l10n.trialSessionDesc,
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -755,6 +757,7 @@ class _TrialBookingBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -769,7 +772,7 @@ class _TrialBookingBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'No active promotion — you can book 1 free trial session.',
+              l10n.trialBookingBanner,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.textColor.withValues(alpha: 0.8),
                   ),
@@ -813,6 +816,7 @@ class _BookingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isCancelledByAdmin =
         booking.status == BookingStatus.cancelledByAdmin;
     final canCancel = booking.canCancel();
@@ -850,10 +854,10 @@ class _BookingTile extends StatelessWidget {
         ),
         subtitle: Text(
           isCancelledByAdmin
-              ? 'Cancelled by studio — credit refunded'
+              ? l10n.cancelledByStudio
               : canCancel
-                  ? 'Cancel up to 12h before'
-                  : 'Cancellation window passed',
+                  ? l10n.cancelUpTo12h
+                  : l10n.cancellationWindowPassed,
           style: TextStyle(
             fontSize: 12,
             color: isCancelledByAdmin
@@ -870,7 +874,7 @@ class _BookingTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Cancelled',
+                  l10n.cancelledBadge,
                   style: TextStyle(
                       color: AppTheme.errorRed,
                       fontSize: 12,
@@ -882,9 +886,9 @@ class _BookingTile extends StatelessWidget {
                     onPressed: onCancel,
                     style: TextButton.styleFrom(
                         foregroundColor: AppTheme.errorRed),
-                    child: const Text('Cancel'),
+                    child: Text(l10n.cancelButton),
                   )
-                : Text('Locked',
+                : Text(l10n.lockedLabel,
                     style: TextStyle(
                         color: AppTheme.textColor.withValues(alpha: 0.4),
                         fontSize: 13)),
@@ -898,6 +902,7 @@ class _EmptySessionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -907,7 +912,7 @@ class _EmptySessionsCard extends StatelessWidget {
       ),
       child: Center(
         child: Text(
-          'No upcoming sessions available right now.',
+          l10n.noUpcomingSessionsAvailable,
           style: TextStyle(
               color: AppTheme.textColor.withValues(alpha: 0.5)),
         ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +30,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
 
+  StreamSubscription<QuerySnapshot>? _adminCancelSub;
+
   static const _channelId = 'pilates_reminders';
   static const _channelName = 'Session Reminders';
   static const _channelDesc =
@@ -46,10 +49,15 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     _listenForForegroundMessages();
 
-    // Whenever the auth state changes, refresh the FCM token in Firestore.
+    // Whenever the auth state changes, refresh the FCM token and watch for
+    // admin-cancelled bookings so their local notifications get cancelled.
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         _storeFCMToken(user.uid);
+        _watchAdminCancellations(user.uid);
+      } else {
+        _adminCancelSub?.cancel();
+        _adminCancelSub = null;
       }
     });
   }
@@ -312,6 +320,25 @@ class NotificationService {
     } catch (_) {
       return true;
     }
+  }
+
+  /// Listens for bookings cancelled by admin and cancels their local
+  /// notifications. The snapshot fires immediately on subscription with the
+  /// full current state, so it also handles sessions cancelled while the app
+  /// was closed (as long as the notification hasn't fired yet).
+  void _watchAdminCancellations(String userId) {
+    _adminCancelSub?.cancel();
+    _adminCancelSub = _db
+        .collection('bookings')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'cancelled_by_admin')
+        .snapshots()
+        .listen((snap) {
+          for (final doc in snap.docs) {
+            final sessionId = doc['sessionId'] as String?;
+            if (sessionId != null) cancelSessionReminders(sessionId);
+          }
+        });
   }
 
   /// Converts a session ID to a stable 32-bit int for local notification IDs.
