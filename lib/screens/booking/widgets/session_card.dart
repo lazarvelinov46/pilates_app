@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../models/session_model.dart';
 import '../../../theme.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SessionCard extends StatelessWidget {
   final Session session;
@@ -22,34 +23,41 @@ class SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final double fillPercent = session.bookedCount / session.capacity;
     final bool isFull = session.bookedCount >= session.capacity;
 
-    // Derive the button label and whether it is enabled.
+    final bool tooLateToBook = !alreadyBooked &&
+        DateTime.now().isAfter(
+            session.startsAt.subtract(const Duration(minutes: 30)));
+
     final String buttonLabel;
     final bool buttonEnabled;
     final VoidCallback? buttonAction;
 
     if (isCancelled) {
-      buttonLabel = 'Cancelled';
+      buttonLabel = l10n.sessionCancelledButton;
       buttonEnabled = false;
       buttonAction = null;
     } else if (alreadyBooked) {
-      buttonLabel = 'Already Booked';
+      buttonLabel = l10n.alreadyBooked;
+      buttonEnabled = false;
+      buttonAction = null;
+    } else if (tooLateToBook) {
+      buttonLabel = l10n.bookingClosed;
       buttonEnabled = false;
       buttonAction = null;
     } else if (isFull) {
-      buttonLabel = 'Full';
+      buttonLabel = l10n.fullLabel;
       buttonEnabled = false;
       buttonAction = null;
     } else {
-      buttonLabel = 'Book Session';
+      buttonLabel = l10n.bookSessionButton;
       buttonEnabled = true;
       buttonAction = onBook;
     }
 
-    // Card styling based on state
     final Color cardColor = isCancelled
         ? AppTheme.errorRedContainer.withValues(alpha: 0.5)
         : colorScheme.surfaceContainerLowest;
@@ -123,7 +131,6 @@ class SessionCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Capacity badge
                 _CapacityBadge(
                   booked: session.bookedCount,
                   capacity: session.capacity,
@@ -162,7 +169,7 @@ class SessionCard extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Cancelled'),
+                      child: Text(l10n.sessionCancelledButton),
                     )
                   : FilledButton(
                       onPressed: buttonEnabled ? buttonAction : null,

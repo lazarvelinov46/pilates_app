@@ -67,6 +67,11 @@ class BookingService {
         throw Exception('Session is no longer active');
       }
 
+      final sessionStartsAt = (sessionData['startsAt'] as Timestamp).toDate();
+      if (DateTime.now().isAfter(sessionStartsAt.subtract(const Duration(minutes: 30)))) {
+        throw Exception('Sessions can only be booked up to 30 minutes before they start');
+      }
+
       final int capacity = sessionData['capacity'];
       final int bookedCount = sessionData['bookedCount'];
       if (bookedCount >= capacity) throw Exception('Session is full');
