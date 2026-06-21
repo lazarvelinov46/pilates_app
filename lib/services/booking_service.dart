@@ -17,8 +17,35 @@ class BookingService {
     final bookingsRef = _db.collection('bookings');
 
     await _db.runTransaction((tx) async {
+      // ── ALL READS FIRST ──────────────────────────────────────────────────
       final userSnap = await tx.get(userRef);
+      final sessionSnap = await tx.get(sessionRef);
+
       final userData = userSnap.data()!;
+
+      // ── Session validation ───────────────────────────────────────────────
+      if (!sessionSnap.exists) throw Exception('Session does not exist');
+
+      final sessionData = sessionSnap.data()!;
+      if (sessionData['active'] != true) {
+        throw Exception('Session is no longer active');
+      }
+
+      final int capacity = sessionData['capacity'];
+      final int bookedCount = sessionData['bookedCount'];
+      if (bookedCount >= capacity) throw Exception('Session is full');
+
+      final DateTime sessionStart =
+          (sessionData['startsAt'] as Timestamp).toDate();
+
+      // If nobody has booked yet, close booking 30 minutes before start.
+      if (bookedCount == 0 &&
+          sessionStart.difference(DateTime.now()).inMinutes < 30) {
+        throw Exception(
+          'Booking is closed. Sessions with no bookings cannot be reserved '
+          'less than 30 minutes before they start.',
+        );
+      }
 
       // ── Load promotions (supports both new array and legacy single field) ──
       List<Map<String, dynamic>> promosRaw = [];
@@ -44,6 +71,8 @@ class BookingService {
       });
 
       // Find the first bookable promotion.
+      // A promotion is bookable if the session starts before the promotion
+      // expires (not when the booking is made) and sessions remain.
       int? targetIdx;
       for (int i = 0; i < promosRaw.length; i++) {
         final p = promosRaw[i];
@@ -51,35 +80,11 @@ class BookingService {
         final total = p['totalSessions'] as int;
         final booked = p['booked'] as int;
         final attended = p['attended'] as int;
-        if (!DateTime.now().isAfter(expiresAt) &&
+        if (!sessionStart.isAfter(expiresAt) &&
             total - booked - attended > 0) {
           targetIdx = i;
           break;
         }
-      }
-
-      // ── Session validation ───────────────────────────────────────────────
-      final sessionSnap = await tx.get(sessionRef);
-      if (!sessionSnap.exists) throw Exception('Session does not exist');
-
-      final sessionData = sessionSnap.data()!;
-      if (sessionData['active'] != true) {
-        throw Exception('Session is no longer active');
-      }
-
-      final int capacity = sessionData['capacity'];
-      final int bookedCount = sessionData['bookedCount'];
-      if (bookedCount >= capacity) throw Exception('Session is full');
-
-      // If nobody has booked yet, close booking 30 minutes before start.
-      final DateTime sessionStart =
-          (sessionData['startsAt'] as Timestamp).toDate();
-      if (bookedCount == 0 &&
-          sessionStart.difference(DateTime.now()).inMinutes < 30) {
-        throw Exception(
-          'Booking is closed. Sessions with no bookings cannot be reserved '
-          'less than 30 minutes before they start.',
-        );
       }
 
       // Duplicate-booking guard.
