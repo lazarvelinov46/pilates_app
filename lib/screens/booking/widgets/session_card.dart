@@ -31,6 +31,10 @@ class SessionCard extends StatelessWidget {
     final bool buttonEnabled;
     final VoidCallback? buttonAction;
 
+    final bool bookingClosedEarly = !isFull &&
+        session.bookedCount == 0 &&
+        session.startsAt.difference(DateTime.now()).inMinutes < 30;
+
     if (isCancelled) {
       buttonLabel = 'Cancelled';
       buttonEnabled = false;
@@ -41,6 +45,10 @@ class SessionCard extends StatelessWidget {
       buttonAction = null;
     } else if (isFull) {
       buttonLabel = 'Full';
+      buttonEnabled = false;
+      buttonAction = null;
+    } else if (bookingClosedEarly) {
+      buttonLabel = 'Booking Closed';
       buttonEnabled = false;
       buttonAction = null;
     } else {

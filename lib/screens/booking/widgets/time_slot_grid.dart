@@ -35,8 +35,10 @@ class TimeSlotGrid extends StatelessWidget {
         final s = sessions[i];
         final selected = selectedSession?.id == s.id;
         final bool alreadyBooked = bookedSessionIds.contains(s.id);
-        final bool isFull = s.bookedCount>=s.capacity;
-        final bool canBook = !alreadyBooked && !isFull;
+        final bool isFull = s.bookedCount >= s.capacity;
+        final bool bookingClosedEarly = s.bookedCount == 0 &&
+            s.startsAt.difference(DateTime.now()).inMinutes < 30;
+        final bool canBook = !alreadyBooked && !isFull && !bookingClosedEarly;
         return GestureDetector(
           onTap: canBook?() => onSelect(s):null,
           child: Card(

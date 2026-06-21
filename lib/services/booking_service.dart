@@ -71,6 +71,17 @@ class BookingService {
       final int bookedCount = sessionData['bookedCount'];
       if (bookedCount >= capacity) throw Exception('Session is full');
 
+      // If nobody has booked yet, close booking 30 minutes before start.
+      final DateTime sessionStart =
+          (sessionData['startsAt'] as Timestamp).toDate();
+      if (bookedCount == 0 &&
+          sessionStart.difference(DateTime.now()).inMinutes < 30) {
+        throw Exception(
+          'Booking is closed. Sessions with no bookings cannot be reserved '
+          'less than 30 minutes before they start.',
+        );
+      }
+
       // Duplicate-booking guard.
       final existing = await bookingsRef
           .where('userId', isEqualTo: userId)
