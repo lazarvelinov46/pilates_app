@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/session_model.dart';
 import '../../services/session_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
 import 'admin_session_attendees_screen.dart';
 
 class AdminSessionsScreen extends StatelessWidget {
@@ -24,11 +25,6 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
   final ScrollController _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now();
   bool _calendarVisible = true;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -55,120 +51,125 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Create Session'),
-          content: Form(
-            key: formKey,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextFormField(
-                controller: capCtrl,
-                decoration: const InputDecoration(labelText: 'Capacity'),
-                keyboardType: TextInputType.number,
-                validator: (v) =>
-                    int.tryParse(v ?? '') == null ? 'Enter valid number' : null,
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.access_time),
-                label: Text(startDT == null
-                    ? 'Select Start Time'
-                    : DateFormat('dd MMM HH:mm').format(startDT!)),
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: ctx,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate:
-                        DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (date == null) return;
-                  final time = await showTimePicker(
-                    context: ctx,
-                    initialTime: const TimeOfDay(hour: 9, minute: 0),
-                  );
-                  if (time == null) return;
-                  setSt(() {
-                    startDT = DateTime(
-                        date.year, date.month, date.day, time.hour, time.minute);
-                    endDT = startDT!.add(const Duration(hours: 1));
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.access_time_filled),
-                label: Text(endDT == null
-                    ? 'Select End Time'
-                    : DateFormat('HH:mm').format(endDT!)),
-                onPressed: () async {
-                  final time = await showTimePicker(
-                    context: ctx,
-                    initialTime: TimeOfDay(
-                        hour: endDT?.hour ?? startDT!.hour + 1, minute: 0),
-                  );
-                  if (time == null) return;
-                  setSt(() => endDT = DateTime(startDT!.year,
-                      startDT!.month, startDT!.day, time.hour, time.minute));
-                },
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate() ||
-                    startDT == null ||
-                    endDT == null) return;
-                if (!endDT!.isAfter(startDT!)) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('End time must be after start time.')),
-                  );
-                  return;
-                }
-                try {
-                  await _service.createSession(
-                      startsAt: startDT!,
-                      endsAt: endDT!,
-                      capacity: int.parse(capCtrl.text));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(
-                        content: Text(e.toString().replaceFirst('Exception: ', '')),
-                        backgroundColor: AppTheme.errorRed,
-                      ),
+        builder: (ctx, setSt) {
+          final dl10n = AppLocalizations.of(ctx);
+          return AlertDialog(
+            title: Text(dl10n.createSessionTitle),
+            content: Form(
+              key: formKey,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextFormField(
+                  controller: capCtrl,
+                  decoration: InputDecoration(labelText: dl10n.capacityLabel),
+                  keyboardType: TextInputType.number,
+                  validator: (v) =>
+                      int.tryParse(v ?? '') == null ? dl10n.enterValidNumber : null,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.access_time),
+                  label: Text(startDT == null
+                      ? dl10n.selectStartTime
+                      : DateFormat('dd MMM HH:mm').format(startDT!)),
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: _selectedDate,
+                      firstDate:
+                          DateTime.now().subtract(const Duration(days: 1)),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                  }
-                }
-              },
-              child: const Text('Create'),
+                    if (date == null) return;
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: const TimeOfDay(hour: 9, minute: 0),
+                    );
+                    if (time == null) return;
+                    setSt(() {
+                      startDT = DateTime(date.year, date.month, date.day,
+                          time.hour, time.minute);
+                      endDT = startDT!.add(const Duration(hours: 1));
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.access_time_filled),
+                  label: Text(endDT == null
+                      ? dl10n.selectEndTime
+                      : DateFormat('HH:mm').format(endDT!)),
+                  onPressed: () async {
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: TimeOfDay(
+                          hour: endDT?.hour ?? startDT!.hour + 1, minute: 0),
+                    );
+                    if (time == null) return;
+                    setSt(() => endDT = DateTime(startDT!.year,
+                        startDT!.month, startDT!.day, time.hour, time.minute));
+                  },
+                ),
+              ]),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(dl10n.cancelButton)),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate() ||
+                      startDT == null ||
+                      endDT == null) return;
+                  if (!endDT!.isAfter(startDT!)) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(dl10n.endTimeAfterStart)),
+                    );
+                    return;
+                  }
+                  try {
+                    await _service.createSession(
+                        startsAt: startDT!,
+                        endsAt: endDT!,
+                        capacity: int.parse(capCtrl.text));
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              e.toString().replaceFirst('Exception: ', '')),
+                          backgroundColor: AppTheme.errorRed,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: Text(dl10n.createButton),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   Future<void> _createDefaultWeek(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final weekday = _selectedDate.weekday;
     final monday = _selectedDate.subtract(Duration(days: weekday - 1));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Create Default Week Sessions'),
-        content: Text(
-            'Creates 8 sessions/day Mon-Fri for week of ${DateFormat('dd MMM yyyy').format(monday)}.\n\nMorning: 09:00–13:00\nEvening: 17:00–21:00\nCapacity: 6'),
+        title: Text(l10n.createDefaultWeekTitle),
+        content: Text(l10n.createDefaultWeekBody(
+            DateFormat('dd MMM yyyy').format(monday))),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(l10n.cancelButton)),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Create')),
+              child: Text(l10n.createButton)),
         ],
       ),
     );
@@ -180,7 +181,9 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
         final s = DateTime(day.year, day.month, day.day, h);
         try {
           await _service.createSession(
-              startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+              startsAt: s,
+              endsAt: s.add(const Duration(hours: 1)),
+              capacity: 6);
         } catch (_) {
           skipped++;
         }
@@ -189,7 +192,9 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
         final s = DateTime(day.year, day.month, day.day, h);
         try {
           await _service.createSession(
-              startsAt: s, endsAt: s.add(const Duration(hours: 1)), capacity: 6);
+              startsAt: s,
+              endsAt: s.add(const Duration(hours: 1)),
+              capacity: 6);
         } catch (_) {
           skipped++;
         }
@@ -197,40 +202,40 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
     }
     if (context.mounted) {
       final msg = skipped == 0
-          ? 'Default week sessions created!'
-          : 'Done — $skipped slot${skipped == 1 ? '' : 's'} skipped (already exist).';
+          ? l10n.defaultWeekCreated
+          : l10n.defaultWeekSkipped(skipped);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
-  /// Shows a confirmation dialog before deactivating a session.
-  /// Clearly states that booked users will be notified and credited.
   Future<void> _confirmDeactivate(BuildContext context, Session session) async {
+    final l10n = AppLocalizations.of(context);
     final bookedCount = session.bookedCount;
     final hasBookings = bookedCount > 0;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Cancel Session?'),
+        title: Text(l10n.cancelSessionAdminTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Session on ${DateFormat('dd MMM • HH:mm').format(session.startsAt)}',
+              l10n.sessionOnDate(
+                  DateFormat('dd MMM • HH:mm').format(session.startsAt)),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             if (hasBookings) ...[
-              // Warn admin clearly — this action affects real users.
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppTheme.warningOrangeContainer,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.warningOrange.withValues(alpha: 0.4)),
+                  border: Border.all(
+                      color: AppTheme.warningOrange.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,8 +245,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$bookedCount user${bookedCount == 1 ? '' : 's'} '
-                        'will have their session credit automatically refunded.',
+                        l10n.usersWillBeRefunded(bookedCount),
                         style: const TextStyle(
                             color: AppTheme.warningOrange, fontSize: 13),
                       ),
@@ -251,18 +255,19 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
               ),
               const SizedBox(height: 12),
             ],
-            const Text('This action cannot be undone.'),
+            Text(l10n.thisActionCannotBeUndone),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep Session')),
+              child: Text(l10n.keepSessionButton)),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancel Session',
-                style: TextStyle(color: Colors.white)),
+            child: Text(l10n.cancelSessionButton,
+                style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -276,8 +281,8 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(hasBookings
-              ? 'Session cancelled. ${session.bookedCount} credit${session.bookedCount == 1 ? '' : 's'} refunded.'
-              : 'Session cancelled.'),
+              ? l10n.sessionCancelledWithRefund(session.bookedCount)
+              : l10n.sessionCancelledSimple),
         ),
       );
     }
@@ -285,6 +290,7 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('sessions')
@@ -306,7 +312,6 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
 
         return Scaffold(
           body: Column(children: [
-            // Collapsible calendar
             AnimatedSize(
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeInOut,
@@ -326,7 +331,6 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                   : const SizedBox.shrink(),
             ),
 
-            // Collapsed date bar
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: _calendarVisible
@@ -354,8 +358,8 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                             Text(
                               DateFormat('EEEE, dd MMMM yyyy')
                                   .format(_selectedDate),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w500),
                             ),
                             const Spacer(),
                             const Icon(Icons.expand_more, size: 16),
@@ -365,19 +369,18 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                     ),
             ),
 
-            // Action bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: Row(
                 children: [
                   Text(
-                    '${todaysSessions.length} session${todaysSessions.length == 1 ? '' : 's'}',
+                    l10n.sessionCount(todaysSessions.length),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const Spacer(),
                   TextButton.icon(
                     icon: const Icon(Icons.auto_awesome, size: 16),
-                    label: const Text('Default week'),
+                    label: Text(l10n.defaultWeekButton),
                     onPressed: () => _createDefaultWeek(context),
                   ),
                 ],
@@ -393,8 +396,10 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
             else if (todaysSessions.isEmpty)
               Expanded(
                 child: Center(
-                  child: Text('No sessions on this date',
-                      style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.45))),
+                  child: Text(l10n.noSessionsOnThisDate,
+                      style: TextStyle(
+                          color:
+                              AppTheme.textColor.withValues(alpha: 0.45))),
                 ),
               )
             else
@@ -402,112 +407,127 @@ class _AdminSessionsBodyState extends State<_AdminSessionsBody> {
                 child: NotificationListener<UserScrollNotification>(
                   onNotification: (notification) {
                     if (notification.direction == ScrollDirection.reverse) {
-                      if (_calendarVisible) setState(() => _calendarVisible = false);
-                    } else if (notification.direction == ScrollDirection.forward) {
-                      if (!_calendarVisible && _scrollController.offset < 20) {
+                      if (_calendarVisible)
+                        setState(() => _calendarVisible = false);
+                    } else if (notification.direction ==
+                        ScrollDirection.forward) {
+                      if (!_calendarVisible &&
+                          _scrollController.offset < 20) {
                         setState(() => _calendarVisible = true);
                       }
                     }
                     return false;
                   },
                   child: ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                  itemCount: todaysSessions.length,
-                  separatorBuilder: (context, i) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final s = todaysSessions[i];
-                    final isPast = s.startsAt.isBefore(DateTime.now());
-                    final hasBookings = s.bookedCount > 0;
-                    final cs = Theme.of(context).colorScheme;
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                    itemCount: todaysSessions.length,
+                    separatorBuilder: (context, i) =>
+                        const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final s = todaysSessions[i];
+                      final isPast = s.startsAt.isBefore(DateTime.now());
+                      final hasBookings = s.bookedCount > 0;
+                      final cs = Theme.of(context).colorScheme;
 
-                    Widget trailingWidget;
-                    if (!s.active) {
-                      trailingWidget = Chip(
-                        label: const Text('Inactive'),
-                        backgroundColor: AppTheme.surfaceContainerHighest,
-                        labelStyle: TextStyle(fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                      );
-                    } else if (isPast) {
-                      trailingWidget = Chip(
-                        label: const Text('Completed'),
-                        backgroundColor: AppTheme.historySlateContainer,
-                        labelStyle: TextStyle(fontSize: 12, color: AppTheme.historySlate),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                      );
-                    } else {
-                      trailingWidget = IconButton(
-                        icon: const Icon(Icons.block, color: AppTheme.errorRed),
-                        tooltip: 'Cancel session',
-                        onPressed: () => _confirmDeactivate(context, s),
-                      );
-                    }
+                      Widget trailingWidget;
+                      if (!s.active) {
+                        trailingWidget = Chip(
+                          label: Text(l10n.inactive),
+                          backgroundColor: AppTheme.surfaceContainerHighest,
+                          labelStyle: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textColor
+                                  .withValues(alpha: 0.5)),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        );
+                      } else if (isPast) {
+                        trailingWidget = Chip(
+                          label: Text(l10n.completed),
+                          backgroundColor: AppTheme.historySlateContainer,
+                          labelStyle: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.historySlate),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        );
+                      } else {
+                        trailingWidget = IconButton(
+                          icon: const Icon(Icons.block,
+                              color: AppTheme.errorRed),
+                          tooltip: l10n.cancelSessionTooltip,
+                          onPressed: () =>
+                              _confirmDeactivate(context, s),
+                        );
+                      }
 
-                    return InkWell(
-                      onTap: hasBookings
-                          ? () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AdminSessionAttendeesScreen(session: s),
+                      return InkWell(
+                        onTap: hasBookings
+                            ? () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        AdminSessionAttendeesScreen(
+                                            session: s),
+                                  ),
+                                )
+                            : null,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: s.active
+                                    ? AppTheme.successGreenContainer
+                                    : AppTheme.surfaceContainerHighest,
+                                child: Text(
+                                  DateFormat.Hm().format(s.startsAt),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
-                              )
-                          : null,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          children: [
-                            // ── Leading avatar ─────────────────────────────────────
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor:
-                                  s.active ? AppTheme.successGreenContainer : AppTheme.surfaceContainerHighest,
-                              child: Text(
-                                DateFormat.Hm().format(s.startsAt),
-                                style: const TextStyle(fontSize: 11),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-
-                            // ── Title + subtitle ───────────────────────────────────
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}',
-                                    style: const TextStyle(
-                                        fontSize: 15, fontWeight: FontWeight.w500),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Capacity: ${s.capacity}  |  Booked: ${s.bookedCount}',
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                      if (hasBookings) ...[
-                                        const SizedBox(width: 4),
-                                        Icon(Icons.group,
-                                            size: 13, color: cs.primary),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${DateFormat.Hm().format(s.startsAt)} – ${DateFormat.Hm().format(s.endsAt)}',
+                                      style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          l10n.capacityBooked(
+                                              s.capacity, s.bookedCount),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                        if (hasBookings) ...[
+                                          const SizedBox(width: 4),
+                                          Icon(Icons.group,
+                                              size: 13,
+                                              color: cs.primary),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-
-                            // ── Trailing — never constrained ──────────────────────
-                            const SizedBox(width: 8),
-                            trailingWidget,
-                          ],
+                              const SizedBox(width: 8),
+                              trailingWidget,
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
                 ),
               ),
           ]),
@@ -587,7 +607,7 @@ class _AdminCalendarState extends State<_AdminCalendar> {
                 child: Container(
                   width: 4,
                   height: 4,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppTheme.primary,
                     shape: BoxShape.circle,
                   ),
@@ -628,7 +648,8 @@ class _AdminCalendarState extends State<_AdminCalendar> {
               .map((d) => Center(
                   child: Text(d,
                       style: TextStyle(
-                          fontSize: 11, color: AppTheme.textColor.withValues(alpha: 0.45)))))
+                          fontSize: 11,
+                          color: AppTheme.textColor.withValues(alpha: 0.45)))))
               .toList(),
         ),
         GridView.count(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
@@ -9,6 +11,7 @@ import 'models/user_model.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/verification_screen.dart';
 import 'theme.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,22 +19,55 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialise FCM, local notifications, and timezone data.
-  // The service also registers the background FCM handler and starts
-  // listening to auth-state changes to keep the FCM token in sync.
-  await NotificationService().init();
+  // Pre-load locale data for date formatting in both supported languages.
+  await initializeDateFormatting('en');
+  await initializeDateFormatting('sr');
 
+  await NotificationService().init();
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  // Global locale notifier — updated after login and from preferences.
+  static final localeNotifier = ValueNotifier<Locale>(const Locale('en'));
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    MyApp.localeNotifier.addListener(_onLocaleChanged);
+  }
+
+  @override
+  void dispose() {
+    MyApp.localeNotifier.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
+  void _onLocaleChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      locale: MyApp.localeNotifier.value,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('sr'),
+      ],
       home: const AuthGate(),
     );
   }
@@ -66,7 +102,6 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            // Block unverified accounts from reaching the app.
             final firebaseUser = authService.currentFirebaseUser;
             if (firebaseUser != null && !firebaseUser.emailVerified) {
               return VerificationScreen(
@@ -82,6 +117,15 @@ class AuthGate extends StatelessWidget {
             }
 
             final appUser = userSnapshot.data!;
+
+            // Apply the user's saved language preference.
+            final savedLocale = Locale(appUser.preferences.language);
+            if (MyApp.localeNotifier.value != savedLocale) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => MyApp.localeNotifier.value = savedLocale,
+              );
+            }
+
             if (appUser.role == UserRole.admin ||
                 appUser.role == UserRole.owner) {
               return AdminShell(role: appUser.role);

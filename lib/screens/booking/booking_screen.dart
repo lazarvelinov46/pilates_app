@@ -4,13 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/session_model.dart';
-import '../../models/booking_model.dart';
 import '../../models/user_model.dart';
 import '../../services/user_service.dart';
 import '../../services/session_service.dart';
 import '../../services/booking_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
 
 import 'widgets/date_selector.dart';
 import 'widgets/session_card.dart';
@@ -48,7 +48,6 @@ class _BookingScreenState extends State<BookingScreen> {
     _activeBookingsStream =
         _bookingService.getUserActiveBookingsStream(userId);
     _loadAvailableDates();
-
   }
 
   @override
@@ -80,6 +79,7 @@ class _BookingScreenState extends State<BookingScreen> {
   // ── Booking ───────────────────────────────────────────────────────────────
 
   Future<void> _confirmBooking(Session session) async {
+    final l10n = AppLocalizations.of(context);
     try {
       await _bookingService.bookSession(
         userId: userId,
@@ -93,10 +93,8 @@ class _BookingScreenState extends State<BookingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Session booked for '
-              '${DateFormat('EEE dd MMM • HH:mm').format(session.startsAt)}',
-            ),
+            content: Text(l10n.sessionBookedFor(
+                DateFormat('EEE dd MMM • HH:mm').format(session.startsAt))),
             backgroundColor: AppTheme.successGreen,
           ),
         );
@@ -105,64 +103,8 @@ class _BookingScreenState extends State<BookingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Booking failed: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: AppTheme.errorRed,
-          ),
-        );
-      }
-    }
-  }
-
-  // ── Cancellation ──────────────────────────────────────────────────────────
-
-  Future<void> _cancelBookingForSession(
-      Session session, Booking? booking) async {
-    if (booking == null) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancel session?'),
-        content: Text(
-          'Are you sure you want to cancel your session on '
-          '${booking.formattedDateTime}?\n\n'
-          '${booking.canCancel() ? 'Your session credit will be returned to your promotion.' : 'Note: cancellation is within 12 hours of the session — your credit will NOT be refunded.'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep it'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-            child: const Text('Yes, cancel'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      await _bookingService.cancelBooking(booking: booking);
-
-      setState(() => _cancelledSessionIds.add(session.id));
-
-      await _notificationService.cancelSessionReminders(session.id);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session cancelled')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(AppLocalizations.of(context).bookingFailed(
+                e.toString().replaceFirst('Exception: ', ''))),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -174,8 +116,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Book a Session')),
+      appBar: AppBar(title: Text(l10n.bookSessionTitle)),
       body: Column(
         children: [
           // ── Collapsible calendar ────────────────────────────────────────
@@ -267,8 +210,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                               .withValues(alpha: 0.3)),
                                       const SizedBox(height: 12),
                                       Text(
-                                        'No sessions on '
-                                        '${DateFormat('dd MMM').format(selectedDate)}',
+                                        l10n.noSessionsOnDate(DateFormat('dd MMM').format(selectedDate)),
                                         style: TextStyle(
                                             color: AppTheme.textColor
                                                 .withValues(alpha: 0.5)),
@@ -333,6 +275,7 @@ class _TrialStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
@@ -351,8 +294,8 @@ class _TrialStatusBanner extends StatelessWidget {
           Expanded(
             child: Text(
               trialSessionUsed
-                  ? 'Trial session booked — purchase a package to continue.'
-                  : 'No active promotion. You can book 1 free trial session.',
+                  ? l10n.trialSessionBookedBanner
+                  : l10n.noPromotionTrialAvailable,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.textColor.withValues(alpha: 0.8),
                   ),

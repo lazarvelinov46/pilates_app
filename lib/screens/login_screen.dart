@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
+import '../l10n/app_localizations.dart';
 import 'main_shell.dart';
 import 'admin/admin_shell.dart';
 import 'verification_screen.dart';
@@ -63,25 +64,26 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _forgotPassword() async {
+    final l10n = AppLocalizations.of(context);
     final emailController =
         TextEditingController(text: _emailController.text.trim());
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset password'),
+        title: Text(l10n.resetPasswordTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Enter your email and we\'ll send you a reset link.'),
+            Text(l10n.resetPasswordDesc),
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: l10n.emailLabel,
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
             ),
           ],
@@ -89,11 +91,11 @@ class _LoginScreenState extends State<LoginScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancelButton),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Send link'),
+            child: Text(l10n.sendLinkButton),
           ),
         ],
       ),
@@ -109,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Password reset email sent to $email'),
+          content: Text(AppLocalizations.of(context).passwordResetEmailSent(email)),
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -119,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message ?? 'Failed to send reset email.'),
+          content: Text(e.message ?? AppLocalizations.of(context).failedToSendResetEmail),
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -130,10 +132,10 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _submit() async {
     setState(() => _loading = true);
+    final l10n = AppLocalizations.of(context);
 
     try {
       if (_isLogin) {
-        // ── Login path ───────────────────────────────────────────────────
         final appUser = await widget.authService.signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
@@ -141,10 +143,6 @@ class _LoginScreenState extends State<LoginScreen>
 
         if (!mounted) return;
 
-        // Guard: if the account exists but e-mail is not yet verified,
-        // send the user to the verification screen instead of the app.
-        // This can happen when the user registered previously and tries
-        // to sign in without having verified first.
         final firebaseUser = widget.authService.currentFirebaseUser;
         if (firebaseUser != null && !firebaseUser.emailVerified) {
           Navigator.of(context).push(
@@ -167,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen>
           MaterialPageRoute(builder: (_) => target),
         );
       } else {
-        // ── Register path — create account + send verification email ─────
         await widget.authService.registerAndSendVerification(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
@@ -193,16 +190,16 @@ class _LoginScreenState extends State<LoginScreen>
       switch (e.code) {
         case 'user-not-found':
         case 'wrong-password':
-          message = 'Wrong email or password.';
+          message = l10n.wrongEmailOrPassword;
           break;
         case 'email-already-in-use':
-          message = 'This email is already registered.';
+          message = l10n.emailAlreadyRegistered;
           break;
         case 'invalid-email':
-          message = 'Invalid email format.';
+          message = l10n.invalidEmailFormat;
           break;
         default:
-          message = 'Authentication failed.';
+          message = l10n.authenticationFailed;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -230,6 +227,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -243,7 +241,6 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               const SizedBox(height: 20),
 
-              // ── Logo ─────────────────────────────────────────────────────
               SvgPicture.asset(
                 'assets/images/logo.svg',
                 width: 200,
@@ -253,9 +250,8 @@ class _LoginScreenState extends State<LoginScreen>
 
               const SizedBox(height: 8),
 
-              // ── Subtitle ─────────────────────────────────────────────────
               Text(
-                _isLogin ? 'Welcome back!' : 'Create your account',
+                _isLogin ? l10n.welcomeBack : l10n.createYourAccount,
                 style: textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.55),
                   letterSpacing: 0.2,
@@ -264,7 +260,6 @@ class _LoginScreenState extends State<LoginScreen>
 
               const SizedBox(height: 32),
 
-              // ── Form Card ─────────────────────────────────────────────────
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Container(
@@ -274,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha:0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
@@ -286,14 +281,13 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Register-only fields ─────────────────────────
                       if (!_isLogin) ...[
                         Row(
                           children: [
                             Expanded(
                               child: _StyledTextField(
                                 controller: _nameController,
-                                label: 'First Name',
+                                label: l10n.firstNameLabel,
                                 icon: Icons.person_outline_rounded,
                               ),
                             ),
@@ -301,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen>
                             Expanded(
                               child: _StyledTextField(
                                 controller: _surnameController,
-                                label: 'Last Name',
+                                label: l10n.lastNameLabel,
                                 icon: Icons.person_outline_rounded,
                               ),
                             ),
@@ -310,19 +304,17 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 14),
                       ],
 
-                      // ── Email ────────────────────────────────────────
                       _StyledTextField(
                         controller: _emailController,
-                        label: 'Email',
+                        label: l10n.emailLabel,
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 14),
 
-                      // ── Password ─────────────────────────────────────
                       _StyledTextField(
                         controller: _passwordController,
-                        label: 'Password',
+                        label: l10n.passwordLabel,
                         icon: Icons.lock_outline_rounded,
                         obscureText: _obscurePassword,
                         suffixIcon: IconButton(
@@ -330,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen>
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: colorScheme.onSurface.withValues(alpha:0.45),
+                            color: colorScheme.onSurface.withValues(alpha: 0.45),
                             size: 20,
                           ),
                           onPressed: () => setState(
@@ -340,7 +332,6 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 24),
 
-                      // ── Submit button ────────────────────────────────
                       SizedBox(
                         height: 52,
                         child: _loading
@@ -362,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                                 child: Text(
-                                  _isLogin ? 'Sign In' : 'Create Account',
+                                  _isLogin ? l10n.signInButton : l10n.createAccountButton,
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
@@ -383,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen>
                     alignment: WrapAlignment.center,
                     children: [
                       Text(
-                        'By registering you agree to our ',
+                        l10n.byRegisteringAgree,
                         style: TextStyle(
                           fontSize: 12,
                           color: colorScheme.onSurface.withValues(alpha: 0.55),
@@ -395,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen>
                           mode: LaunchMode.externalApplication,
                         ),
                         child: Text(
-                          'Privacy Policy',
+                          l10n.privacyPolicy,
                           style: TextStyle(
                             fontSize: 12,
                             color: colorScheme.primary,
@@ -418,7 +409,7 @@ class _LoginScreenState extends State<LoginScreen>
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
-                      'Forgot password?',
+                      l10n.forgotPassword,
                       style: TextStyle(
                         color: colorScheme.onSurface.withValues(alpha: 0.55),
                       ),
@@ -429,14 +420,11 @@ class _LoginScreenState extends State<LoginScreen>
 
               const SizedBox(height: 20),
 
-              // ── Toggle login / register ──────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _isLogin
-                        ? "Don't have an account?"
-                        : 'Already have an account?',
+                    _isLogin ? l10n.noAccount : l10n.alreadyHaveAccount,
                     style: textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.55),
                     ),
@@ -448,7 +436,7 @@ class _LoginScreenState extends State<LoginScreen>
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
-                      _isLogin ? 'Register' : 'Sign in',
+                      _isLogin ? l10n.registerButton : l10n.signInLink,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: colorScheme.primary,
@@ -464,8 +452,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 }
-
-// ─── Shared styled text field ─────────────────────────────────────────────────
 
 class _StyledTextField extends StatelessWidget {
   final TextEditingController controller;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
+import '../../l10n/app_localizations.dart';
 
 class UpcomingBookingTile extends StatelessWidget {
   final Booking booking;
@@ -13,6 +14,7 @@ class UpcomingBookingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final bool canCancel = booking.canCancel();
 
     return Card(
@@ -20,20 +22,20 @@ class UpcomingBookingTile extends StatelessWidget {
         title: Text(booking.formattedDateTime),
         subtitle: Text(
           canCancel
-              ? 'You can cancel until 12h before'
-              : 'Cancellation window passed',
+              ? l10n.cancelUntil12h
+              : l10n.cancellationWindowPassed,
         ),
         trailing: canCancel
             ? TextButton(
                 onPressed: onCancel,
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  l10n.cancelButton,
+                  style: const TextStyle(color: Colors.red),
                 ),
               )
-            : const Text(
-                'Locked',
-                style: TextStyle(color: Colors.grey),
+            : Text(
+                l10n.lockedLabel,
+                style: const TextStyle(color: Colors.grey),
               ),
       ),
     );

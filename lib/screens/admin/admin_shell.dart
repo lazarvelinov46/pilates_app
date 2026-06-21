@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../login_screen.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
-import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../main.dart';
 import 'admin_packages_screen.dart';
 import 'admin_promotions_screen.dart';
 import 'admin_ratings_screen.dart';
@@ -20,7 +21,6 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> {
   int _currentIndex = 0;
   late final List<Widget> _screens;
-  late final List<BottomNavigationBarItem> _navItems;
 
   @override
   void initState() {
@@ -32,38 +32,11 @@ class _AdminShellState extends State<AdminShell> {
       const AdminRatingsScreen(),
       if (widget.role == UserRole.owner) const OwnerAssignmentsScreen(),
     ];
-    _navItems = [
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.inventory_2_outlined),
-        activeIcon: Icon(Icons.inventory_2),
-        label: 'Packages',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.card_giftcard_outlined),
-        activeIcon: Icon(Icons.card_giftcard),
-        label: 'Promotions',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.calendar_month_outlined),
-        activeIcon: Icon(Icons.calendar_month),
-        label: 'Sessions',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.star_outline),
-        activeIcon: Icon(Icons.star),
-        label: 'Ratings',
-      ),
-      if (widget.role == UserRole.owner)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.assignment_outlined),
-          activeIcon: Icon(Icons.assignment),
-          label: 'Assignments',
-        ),
-    ];
   }
 
   Future<void> _logout(BuildContext context) async {
     await AuthService().signOut();
+    MyApp.localeNotifier.value = const Locale('en');
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
@@ -74,14 +47,46 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isOwner = widget.role == UserRole.owner;
+
+    final navItems = [
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.inventory_2_outlined),
+        activeIcon: const Icon(Icons.inventory_2),
+        label: l10n.navPackages,
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.card_giftcard_outlined),
+        activeIcon: const Icon(Icons.card_giftcard),
+        label: l10n.navPromotions,
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.calendar_month_outlined),
+        activeIcon: const Icon(Icons.calendar_month),
+        label: l10n.navSessions,
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.star_outline),
+        activeIcon: const Icon(Icons.star),
+        label: l10n.navRatings,
+      ),
+      if (isOwner)
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.assignment_outlined),
+          activeIcon: const Icon(Icons.assignment),
+          label: l10n.navAssignments,
+        ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.role == UserRole.owner ? 'Owner Panel' : 'Admin Panel'),
+        title: Text(isOwner ? l10n.ownerPanelTitle : l10n.adminPanelTitle),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
+            tooltip: l10n.logoutButton,
             onPressed: () => _logout(context),
           ),
         ],
@@ -90,7 +95,7 @@ class _AdminShellState extends State<AdminShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
-        items: _navItems,
+        items: navItems,
       ),
     );
   }

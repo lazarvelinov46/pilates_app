@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/promotion_assignment_model.dart';
 import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class OwnerAssignmentsScreen extends StatefulWidget {
   const OwnerAssignmentsScreen({super.key});
@@ -27,6 +28,7 @@ class _OwnerAssignmentsScreenState extends State<OwnerAssignmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('promotion_assignments')
@@ -65,8 +67,8 @@ class _OwnerAssignmentsScreenState extends State<OwnerAssignmentsScreen> {
               child: Row(children: [
                 Text(
                   selectedHasAssignments
-                      ? '${forDate.length} assignment${forDate.length == 1 ? '' : 's'}'
-                      : 'No assignments',
+                      ? l10n.assignmentCount(forDate.length)
+                      : l10n.noAssignments,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const Spacer(),
@@ -77,13 +79,15 @@ class _OwnerAssignmentsScreenState extends State<OwnerAssignmentsScreen> {
               ]),
             ),
             const Divider(height: 1),
-            if (snapshot.connectionState == ConnectionState.waiting && all.isEmpty)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                all.isEmpty)
+              const Expanded(
+                  child: Center(child: CircularProgressIndicator()))
             else if (!selectedHasAssignments)
               Expanded(
                 child: Center(
                   child: Text(
-                    'No assignments on this date',
+                    l10n.noAssignmentsOnDate,
                     style: TextStyle(
                         color: AppTheme.textColor.withValues(alpha: 0.45)),
                   ),
@@ -94,8 +98,9 @@ class _OwnerAssignmentsScreenState extends State<OwnerAssignmentsScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   itemCount: forDate.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) => _AssignmentTile(assignment: forDate[i]),
+                  separatorBuilder: (_, i) => const Divider(height: 1),
+                  itemBuilder: (_, i) =>
+                      _AssignmentTile(assignment: forDate[i]),
                 ),
               ),
           ]),
@@ -111,6 +116,7 @@ class _AssignmentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final timeStr = DateFormat('HH:mm').format(assignment.assignedAt);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -147,7 +153,8 @@ class _AssignmentTile extends StatelessWidget {
                     color: AppTheme.textColor.withValues(alpha: 0.55)),
                 const SizedBox(width: 4),
                 Text(
-                  '${assignment.packageName} · ${assignment.numberOfSessions} sessions',
+                  l10n.packageSessions(
+                      assignment.packageName, assignment.numberOfSessions),
                   style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textColor.withValues(alpha: 0.55)),
@@ -160,7 +167,7 @@ class _AssignmentTile extends StatelessWidget {
                     color: AppTheme.textColor.withValues(alpha: 0.45)),
                 const SizedBox(width: 4),
                 Text(
-                  'By ${assignment.assignedByName}',
+                  l10n.byName(assignment.assignedByName),
                   style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textColor.withValues(alpha: 0.45)),
@@ -249,7 +256,7 @@ class _OwnerCalendarState extends State<_OwnerCalendar> {
                 child: Container(
                   width: 4,
                   height: 4,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppTheme.primary,
                     shape: BoxShape.circle,
                   ),

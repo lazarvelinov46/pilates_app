@@ -9,6 +9,8 @@ import '../../models/user_preferences_model.dart';
 import '../../services/user_service.dart';
 import '../../services/auth_service.dart' show AuthService, ReauthCancelledException;
 import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../main.dart';
 import '../login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -25,12 +27,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── Change Password ────────────────────────────────────────────────────────
   Future<void> _sendPasswordReset(String email) async {
+    final l10n = AppLocalizations.of(context);
     try {
       await _authService.resetPassword(email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Password reset email sent to $email'),
+            content: Text(l10n.passwordResetEmailSent(email)),
             backgroundColor: AppTheme.successGreen,
           ),
         );
@@ -39,8 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(l10n.errorMsg(e.toString().replaceFirst('Exception: ', ''))),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -49,24 +51,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showChangePasswordDialog(String email) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Change Password'),
-        content: Text(
-          'A password reset link will be sent to:\n\n$email',
-        ),
+        title: Text(l10n.changePasswordTitle),
+        content: Text(l10n.changePasswordEmailPrompt(email)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancelButton),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _sendPasswordReset(email);
             },
-            child: const Text('Send link'),
+            child: Text(l10n.sendLinkButton),
           ),
         ],
       ),
@@ -76,82 +77,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Preferences ────────────────────────────────────────────────────────────
   void _showPreferencesSheet(UserPreferences current) {
     bool notifications = current.notifications;
+    String language = current.language;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
+        builder: (ctx, setSt) {
+          final l10n = AppLocalizations.of(ctx);
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Text(
-                    'Preferences',
-                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Push notifications'),
-                subtitle: const Text(
-                    'Receive reminders before your sessions'),
-                value: notifications,
-                onChanged: (val) => setSt(() => notifications = val),
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final updated = UserPreferences(
-                      language: current.language,
-                      notifications: notifications,
-                    );
-                    await _userService.updatePreferences(userId, updated);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Preferences saved')),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Text(
+                      l10n.preferencesTitle,
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: Text(l10n.pushNotificationsLabel),
+                  subtitle: Text(l10n.pushNotificationsSubtitle),
+                  value: notifications,
+                  onChanged: (val) => setSt(() => notifications = val),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                // Language selector
+                Row(
+                  children: [
+                    Icon(Icons.language,
+                        color: Theme.of(ctx).colorScheme.primary, size: 24),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.languageLabel,
+                            style: Theme.of(ctx).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          SegmentedButton<String>(
+                            segments: [
+                              ButtonSegment(
+                                value: 'en',
+                                label: Text(l10n.languageEnglish),
+                              ),
+                              ButtonSegment(
+                                value: 'sr',
+                                label: Text(l10n.languageSerbian),
+                              ),
+                            ],
+                            selected: {language},
+                            onSelectionChanged: (val) =>
+                                setSt(() => language = val.first),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final updated = UserPreferences(
+                        language: language,
+                        notifications: notifications,
                       );
-                    }
-                  },
-                  child: const Text('Save'),
+                      await _userService.updatePreferences(userId, updated);
+                      // Apply new locale immediately.
+                      MyApp.localeNotifier.value = Locale(language);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(AppLocalizations.of(context).preferencesSaved)),
+                        );
+                      }
+                    },
+                    child: Text(l10n.saveButton),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   // ── Promotion History ──────────────────────────────────────────────────────
   void _showPromotionHistory(List<Promotion> history) {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -162,7 +205,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         expand: false,
         builder: (ctx, scrollCtrl) => Column(
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               width: 40,
@@ -177,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Row(
                 children: [
                   Text(
-                    'Promotion History',
+                    l10n.promotionHistoryTitle,
                     style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -199,10 +241,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Icon(Icons.history,
                               size: 48,
-                              color: AppTheme.textColor
-                                  .withValues(alpha: 0.3)),
+                              color: AppTheme.textColor.withValues(alpha: 0.3)),
                           const SizedBox(height: 12),
-                          Text('No past promotions',
+                          Text(l10n.noPastPromotions,
                               style: TextStyle(
                                   color: AppTheme.textColor
                                       .withValues(alpha: 0.45))),
@@ -252,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+              AppLocalizations.of(context).errorMsg(e.toString().replaceFirst('Exception: ', ''))),
           backgroundColor: AppTheme.errorRed,
         ),
       );
@@ -260,29 +301,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showDeleteAccountDialog() async {
+    final l10n = AppLocalizations.of(context);
     final isGoogle = _isGoogleUser();
 
     if (isGoogle) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text(
-            'This will permanently delete your account and all your data, '
-            'including upcoming bookings.\n\n'
-            'You will be asked to sign in with Google to confirm.\n\n'
-            'This action cannot be undone.',
-          ),
+          title: Text(l10n.deleteAccountTitle),
+          content: Text(l10n.deleteAccountGoogleBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancelButton),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style:
-                  TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-              child: const Text('Delete Account'),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+              child: Text(l10n.deleteAccountTitle),
             ),
           ],
         ),
@@ -291,7 +327,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // Email/password — ask for password to confirm.
     final passwordController = TextEditingController();
     bool obscure = true;
 
@@ -299,26 +334,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Delete Account'),
+          title: Text(l10n.deleteAccountTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'This will permanently delete your account and all your data, '
-                'including upcoming bookings.\n\n'
-                'This action cannot be undone.',
-              ),
+              Text(l10n.deleteAccountPasswordBody),
               const SizedBox(height: 16),
-              const Text('Enter your password to confirm:',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
+              Text(l10n.enterPasswordToConfirm,
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
               TextField(
                 controller: passwordController,
                 obscureText: obscure,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Password',
+                  hintText: l10n.passwordHint,
                   suffixIcon: IconButton(
                     icon: Icon(obscure
                         ? Icons.visibility_off_outlined
@@ -332,24 +363,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancelButton),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style:
-                  TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-              child: const Text('Delete Account'),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+              child: Text(l10n.deleteAccountTitle),
             ),
           ],
         ),
       ),
     );
 
-    // Capture the value before disposal, then defer disposal to after the
-    // dialog's dismiss animation finishes — disposing during the animation
-    // causes a "controller used after dispose" crash.
     final password = passwordController.text;
-    WidgetsBinding.instance.addPostFrameCallback((_) => passwordController.dispose());
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => passwordController.dispose());
 
     if (confirmed == true) {
       await _performDeleteAccount(password: password);
@@ -358,20 +386,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> _logout() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(l10n.logoutButton),
+        content: Text(l10n.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancelButton),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-            child: const Text('Logout'),
+            child: Text(l10n.logoutButton),
           ),
         ],
       ),
@@ -379,6 +408,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true) {
       await _authService.signOut();
+      // Reset locale to default on logout.
+      MyApp.localeNotifier.value = const Locale('en');
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -392,13 +423,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l10n.profileTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
+            tooltip: l10n.logoutButton,
             onPressed: _logout,
           ),
         ],
@@ -412,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final user = snap.data;
           if (user == null) {
-            return const Center(child: Text('Unable to load profile'));
+            return Center(child: Text(l10n.unableToLoadProfile));
           }
 
           return ListView(
@@ -461,29 +493,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 32),
 
               // ── Account Section ────────────────────────────────────────
-              _SectionHeader(title: 'Account'),
+              _SectionHeader(title: l10n.accountSection),
               const SizedBox(height: 8),
 
               _ProfileTile(
                 icon: Icons.lock_outline,
-                title: 'Change Password',
-                subtitle: 'Send a reset link to your email',
+                title: l10n.changePasswordTitle,
+                subtitle: l10n.changePasswordSubtitle,
                 onTap: () => _showChangePasswordDialog(user.email),
               ),
 
               _ProfileTile(
                 icon: Icons.tune_outlined,
-                title: 'Preferences',
+                title: l10n.preferencesTitle,
                 subtitle: user.preferences.notifications
-                    ? 'Notifications: on'
-                    : 'Notifications: off',
+                    ? l10n.notificationsOn
+                    : l10n.notificationsOff,
                 onTap: () => _showPreferencesSheet(user.preferences),
               ),
 
               _ProfileTile(
                 icon: Icons.delete_forever_outlined,
-                title: 'Delete Account',
-                subtitle: 'Permanently remove your account and data',
+                title: l10n.deleteAccountTitle,
+                subtitle: l10n.deleteAccountSubtitle,
                 onTap: _showDeleteAccountDialog,
                 isDestructive: true,
               ),
@@ -491,28 +523,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
 
               // ── History Section ────────────────────────────────────────
-              _SectionHeader(title: 'Promotions'),
+              _SectionHeader(title: l10n.promotionsSection),
               const SizedBox(height: 8),
 
               _ProfileTile(
                 icon: Icons.history,
-                title: 'Promotion History',
+                title: l10n.promotionHistoryTitle,
                 subtitle: user.promotionHistory.isEmpty
-                    ? 'No past promotions'
-                    : '${user.promotionHistory.length} past promotion${user.promotionHistory.length == 1 ? '' : 's'}',
+                    ? l10n.noPastPromotions
+                    : l10n.pastPromotionsCount(user.promotionHistory.length),
                 onTap: () => _showPromotionHistory(user.promotionHistory),
               ),
 
               const SizedBox(height: 24),
 
               // ── Legal Section ──────────────────────────────────────────
-              _SectionHeader(title: 'Legal'),
+              _SectionHeader(title: l10n.legalSection),
               const SizedBox(height: 8),
 
               _ProfileTile(
                 icon: Icons.privacy_tip_outlined,
-                title: 'Privacy Policy',
-                subtitle: 'How we handle your data',
+                title: l10n.privacyPolicy,
+                subtitle: l10n.privacyPolicySubtitle,
                 onTap: () => launchUrl(
                   Uri.parse('https://pilates-studio-da2a9.web.app/privacy-policy.html'),
                   mode: LaunchMode.externalApplication,
@@ -592,6 +624,7 @@ class _PromotionHistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final used = promotion.attended + promotion.booked;
     final fillPercent =
         promotion.totalSessions > 0 ? used / promotion.totalSessions : 0.0;
@@ -615,7 +648,7 @@ class _PromotionHistoryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                'Expired ${DateFormat('dd MMM yy').format(promotion.expiresAt)}',
+                '${l10n.expiredOn} ${DateFormat('dd MMM yy').format(promotion.expiresAt)}',
                 style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textColor.withValues(alpha: 0.45)),
@@ -635,7 +668,12 @@ class _PromotionHistoryTile extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${promotion.attended} attended · ${promotion.booked} booked · ${promotion.remaining} unused  |  $used / ${promotion.totalSessions} total',
+            l10n.promotionStats(
+                promotion.attended,
+                promotion.booked,
+                promotion.remaining,
+                used,
+                promotion.totalSessions),
             style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.textColor.withValues(alpha: 0.5)),

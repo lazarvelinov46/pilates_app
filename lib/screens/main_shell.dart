@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/notification_service.dart';
 import 'home/home_screen.dart';
 import 'booking/booking_screen.dart';
@@ -26,6 +27,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
@@ -43,15 +45,15 @@ class _MainShellState extends State<MainShell> {
             onTap: (index) => setState(() => _currentIndex = index),
             type: BottomNavigationBarType.fixed,
             items: [
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Home',
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.home_outlined),
+                activeIcon: const Icon(Icons.home),
+                label: l10n.navHome,
               ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.calendar_today_outlined),
-                activeIcon: Icon(Icons.calendar_today),
-                label: 'Book',
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.calendar_today_outlined),
+                activeIcon: const Icon(Icons.calendar_today),
+                label: l10n.navBook,
               ),
               BottomNavigationBarItem(
                 icon: _NotifIcon(
@@ -62,12 +64,12 @@ class _MainShellState extends State<MainShell> {
                   icon: Icons.notifications,
                   count: unreadCount,
                 ),
-                label: 'Notifications',
+                label: l10n.navNotifications,
               ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profile',
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.person_outline),
+                activeIcon: const Icon(Icons.person),
+                label: l10n.navProfile,
               ),
             ],
           );
@@ -77,7 +79,6 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-/// Bell icon with a small red badge showing [count] when non-zero.
 class _NotifIcon extends StatelessWidget {
   const _NotifIcon({required this.icon, required this.count});
 

@@ -6,6 +6,7 @@ import '../../../models/rating_model.dart';
 import '../../../models/user_model.dart';
 import '../../../services/rating_service.dart';
 import '../../../theme.dart';
+import '../../../l10n/app_localizations.dart';
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ class _CompletedSessionsSheetState extends State<_CompletedSessionsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
       minChildSize: 0.4,
@@ -94,7 +96,7 @@ class _CompletedSessionsSheetState extends State<_CompletedSessionsSheet> {
             child: Row(
               children: [
                 Text(
-                  'Completed Sessions',
+                  l10n.completedSessionsTitle,
                   style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -113,7 +115,7 @@ class _CompletedSessionsSheetState extends State<_CompletedSessionsSheet> {
             child: widget.completedBookings.isEmpty
                 ? Center(
                     child: Text(
-                      'No completed sessions yet.',
+                      l10n.noCompletedSessions,
                       style: TextStyle(
                           color: AppTheme.textColor.withValues(alpha: 0.45)),
                     ),
@@ -157,6 +159,7 @@ class _SessionHistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isRated = existingRating != null;
 
     return Container(
@@ -174,7 +177,6 @@ class _SessionHistoryTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Date column
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -213,7 +215,6 @@ class _SessionHistoryTile extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // Action
           if (isRated)
             Container(
               padding: const EdgeInsets.symmetric(
@@ -223,7 +224,7 @@ class _SessionHistoryTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                'Rated',
+                l10n.ratedBadge,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -234,7 +235,7 @@ class _SessionHistoryTile extends StatelessWidget {
           else
             OutlinedButton.icon(
               icon: const Icon(Icons.star_outline, size: 16),
-              label: const Text('Rate'),
+              label: Text(l10n.rateButton),
               onPressed: onRate,
               style: OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
@@ -286,9 +287,10 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (_selectedStars == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a star rating.')),
+        SnackBar(content: Text(l10n.pleaseSelectRating)),
       );
       return;
     }
@@ -327,8 +329,8 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(AppLocalizations.of(context)
+                .errorMsg(e.toString().replaceFirst('Exception: ', ''))),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -338,69 +340,68 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Rate your session'),
+      title: Text(l10n.rateSessionTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          Text(
-            DateFormat('EEEE, dd MMM yyyy • HH:mm')
-                .format(widget.booking.sessionStartsAt),
-            style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textColor.withValues(alpha: 0.55)),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          // Star selector
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (i) {
-              return GestureDetector(
-                onTap: () => setState(() => _selectedStars = i + 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(
-                    i < _selectedStars ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 38,
+            Text(
+              DateFormat('EEEE, dd MMM yyyy • HH:mm')
+                  .format(widget.booking.sessionStartsAt),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textColor.withValues(alpha: 0.55)),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedStars = i + 1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      i < _selectedStars ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 38,
+                    ),
                   ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _selectedStars == 0
-                ? 'Tap a star to rate'
-                : _starLabel(_selectedStars),
-            style: TextStyle(
-              fontSize: 13,
-              color: _selectedStars == 0
-                  ? AppTheme.textColor.withValues(alpha: 0.4)
-                  : Colors.amber.shade800,
-              fontWeight: FontWeight.w500,
+                );
+              }),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _commentCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Comment (optional)',
-              hintText: 'How was the session?',
+            const SizedBox(height: 6),
+            Text(
+              _selectedStars == 0
+                  ? l10n.tapStarToRate
+                  : l10n.starLabel(_selectedStars),
+              style: TextStyle(
+                fontSize: 13,
+                color: _selectedStars == 0
+                    ? AppTheme.textColor.withValues(alpha: 0.4)
+                    : Colors.amber.shade800,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-        ],
+            const SizedBox(height: 16),
+            TextField(
+              controller: _commentCtrl,
+              decoration: InputDecoration(
+                labelText: l10n.commentLabel,
+                hintText: l10n.commentHint,
+              ),
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+          ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed:
-              _submitting ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          onPressed: _submitting ? null : () => Navigator.pop(context),
+          child: Text(l10n.cancelButton),
         ),
         ElevatedButton(
           onPressed: _submitting ? null : _submit,
@@ -410,21 +411,10 @@ class _RateSessionDialogState extends State<_RateSessionDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Submit'),
+              : Text(l10n.submitButton),
         ),
       ],
     );
-  }
-
-  String _starLabel(int stars) {
-    switch (stars) {
-      case 1: return 'Poor';
-      case 2: return 'Fair';
-      case 3: return 'Good';
-      case 4: return 'Great';
-      case 5: return 'Excellent!';
-      default: return '';
-    }
   }
 }
 

@@ -4,17 +4,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
+import '../l10n/app_localizations.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final userId = FirebaseAuth.instance.currentUser!.uid;
     final service = NotificationService();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(l10n.notificationsTitle)),
       body: StreamBuilder<List<AppNotification>>(
         stream: service.notificationsStream(userId),
         builder: (context, snapshot) {
@@ -36,7 +38,7 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No notifications',
+                    l10n.noNotifications,
                     style: TextStyle(
                       color: AppTheme.textColor.withValues(alpha: 0.45),
                     ),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../models/rating_model.dart';
 import '../../services/rating_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AdminRatingsScreen extends StatelessWidget {
   const AdminRatingsScreen({super.key});
@@ -29,12 +30,8 @@ class AdminRatingsScreen extends StatelessWidget {
         return Scaffold(
           body: Column(
             children: [
-              // ── Summary card ─────────────────────────────────────────
               _SummaryCard(average: avg, totalCount: ratings.length),
-
               const Divider(height: 1),
-
-              // ── Ratings list ─────────────────────────────────────────
               if (ratings.isEmpty)
                 Expanded(
                   child: Center(
@@ -42,11 +39,14 @@ class AdminRatingsScreen extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.star_outline,
-                            size: 48, color: AppTheme.textColor.withValues(alpha: 0.3)),
+                            size: 48,
+                            color: AppTheme.textColor.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
                         Text(
-                          'No ratings yet.',
-                          style: TextStyle(color: AppTheme.textColor.withValues(alpha: 0.45)),
+                          AppLocalizations.of(context).noRatingsYet,
+                          style: TextStyle(
+                              color:
+                                  AppTheme.textColor.withValues(alpha: 0.45)),
                         ),
                       ],
                     ),
@@ -59,8 +59,7 @@ class AdminRatingsScreen extends StatelessWidget {
                     itemCount: ratings.length,
                     separatorBuilder: (context, i) =>
                         const SizedBox(height: 8),
-                    itemBuilder: (_, i) =>
-                        _RatingTile(rating: ratings[i]),
+                    itemBuilder: (_, i) => _RatingTile(rating: ratings[i]),
                   ),
                 ),
             ],
@@ -71,8 +70,6 @@ class AdminRatingsScreen extends StatelessWidget {
   }
 }
 
-// ─── Summary card ─────────────────────────────────────────────────────────────
-
 class _SummaryCard extends StatelessWidget {
   final double average;
   final int totalCount;
@@ -81,6 +78,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
@@ -88,7 +86,6 @@ class _SummaryCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Big star + number
           Column(
             children: [
               Text(
@@ -102,9 +99,10 @@ class _SummaryCard extends StatelessWidget {
               _StarRowDisplay(rating: average),
               const SizedBox(height: 4),
               Text(
-                '$totalCount rating${totalCount == 1 ? '' : 's'}',
+                l10n.ratingCount(totalCount),
                 style: TextStyle(
-                    fontSize: 13, color: AppTheme.textColor.withValues(alpha: 0.5)),
+                    fontSize: 13,
+                    color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
@@ -139,14 +137,13 @@ class _StarRowDisplay extends StatelessWidget {
   }
 }
 
-// ─── Individual rating tile ───────────────────────────────────────────────────
-
 class _RatingTile extends StatelessWidget {
   final SessionRating rating;
   const _RatingTile({required this.rating});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -156,7 +153,6 @@ class _RatingTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── User info + stars row ────────────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -170,8 +166,7 @@ class _RatingTile extends StatelessWidget {
                       : '?',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color:
-                        Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -181,21 +176,19 @@ class _RatingTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      rating.userName.isNotEmpty
-                          ? rating.userName
-                          : '—',
+                      rating.userName.isNotEmpty ? rating.userName : '—',
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                     Text(
                       rating.userEmail,
                       style: TextStyle(
-                          fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
+                          fontSize: 12,
+                          color: AppTheme.textColor.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
               ),
-              // Stars
               _StarRowSmall(rating: rating.rating),
             ],
           ),
@@ -204,33 +197,34 @@ class _RatingTile extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 10),
 
-          // ── Session date + rating date ───────────────────────────────
           Row(
             children: [
               Icon(Icons.fitness_center,
                   size: 14, color: AppTheme.textColor.withValues(alpha: 0.4)),
               const SizedBox(width: 4),
               Text(
-                'Session: ${DateFormat('EEE dd MMM yyyy • HH:mm').format(rating.sessionStartsAt)}',
+                '${l10n.sessionDatePrefix}${DateFormat('EEE dd MMM yyyy • HH:mm').format(rating.sessionStartsAt)}',
                 style: TextStyle(
-                    fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
+                    fontSize: 12,
+                    color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              Icon(Icons.schedule, size: 14, color: AppTheme.textColor.withValues(alpha: 0.4)),
+              Icon(Icons.schedule,
+                  size: 14, color: AppTheme.textColor.withValues(alpha: 0.4)),
               const SizedBox(width: 4),
               Text(
-                'Rated: ${DateFormat('dd MMM yyyy').format(rating.createdAt)}',
+                '${l10n.ratedDatePrefix}${DateFormat('dd MMM yyyy').format(rating.createdAt)}',
                 style: TextStyle(
-                    fontSize: 12, color: AppTheme.textColor.withValues(alpha: 0.5)),
+                    fontSize: 12,
+                    color: AppTheme.textColor.withValues(alpha: 0.5)),
               ),
             ],
           ),
 
-          // ── Comment ─────────────────────────────────────────────────
           if (rating.comment.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(

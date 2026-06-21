@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/session_model.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class _AttendeeInfo {
   final Booking booking;
@@ -63,7 +64,6 @@ class _AdminSessionAttendeesScreenState
       return;
     }
 
-    // Fetch all user docs in parallel.
     final userFutures = bookings.map((b) async {
       try {
         final doc = await _db.collection('users').doc(b.userId).get();
@@ -98,6 +98,7 @@ class _AdminSessionAttendeesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     final session = widget.session;
     final isPast = session.startsAt.isBefore(DateTime.now());
@@ -115,7 +116,7 @@ class _AdminSessionAttendeesScreenState
               '${DateFormat.Hm().format(session.startsAt)} – ${DateFormat.Hm().format(session.endsAt)}',
               style: TextStyle(
                 fontSize: 13,
-                color: cs.onSurface.withValues(alpha:0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -123,7 +124,7 @@ class _AdminSessionAttendeesScreenState
       ),
       body: Column(
         children: [
-          // ── Summary banner ───────────────────────────────────────────────
+          // ── Summary banner ────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -134,26 +135,25 @@ class _AdminSessionAttendeesScreenState
                 const SizedBox(width: 10),
                 Text(
                   _loading
-                      ? 'Loading attendees…'
-                      : '${_attendees.length} of ${session.capacity} '
-                          '${_attendees.length == 1 ? 'attendee' : 'attendees'} booked',
+                      ? l10n.loadingAttendees
+                      : l10n.attendeesBooked(_attendees.length, session.capacity),
                   style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w500),
                 ),
                 if (isPast) ...[
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: cs.outline.withValues(alpha:0.15),
+                      color: cs.outline.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'Completed',
+                      l10n.completed,
                       style: TextStyle(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha:0.6),
+                          color: cs.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w500),
                     ),
                   ),
@@ -162,7 +162,7 @@ class _AdminSessionAttendeesScreenState
             ),
           ),
 
-          // ── Attendees list ───────────────────────────────────────────────
+          // ── Attendees list ────────────────────────────────────────────────
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -173,18 +173,19 @@ class _AdminSessionAttendeesScreenState
                           children: [
                             Icon(Icons.group_off_outlined,
                                 size: 56,
-                                color: cs.onSurface.withValues(alpha:0.25)),
+                                color: cs.onSurface.withValues(alpha: 0.25)),
                             const SizedBox(height: 12),
                             Text(
-                              'No bookings for this session',
+                              l10n.noBookingsForSession,
                               style: TextStyle(
-                                  color: cs.onSurface.withValues(alpha:0.5)),
+                                  color: cs.onSurface.withValues(alpha: 0.5)),
                             ),
                           ],
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 12, 16, 24),
                         itemCount: _attendees.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 10),
@@ -210,13 +211,12 @@ class _AttendeeCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha:0.5)),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Initials avatar
             CircleAvatar(
               radius: 24,
               backgroundColor: cs.primaryContainer,
@@ -230,8 +230,6 @@ class _AttendeeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-
-            // Name + email
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,29 +244,28 @@ class _AttendeeCard extends StatelessWidget {
                     attendee.email,
                     style: TextStyle(
                       fontSize: 13,
-                      color: cs.onSurface.withValues(alpha:0.6),
+                      color: cs.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Booking time
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Icon(Icons.check_circle_outline,
-                    size: 16, color: cs.primary),
+                Icon(Icons.check_circle_outline, size: 16, color: cs.primary),
                 const SizedBox(height: 2),
                 Text(
                   DateFormat('dd MMM').format(attendee.booking.createdAt),
                   style: TextStyle(
-                      fontSize: 11, color: cs.onSurface.withValues(alpha:0.45)),
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.45)),
                 ),
                 Text(
                   DateFormat('HH:mm').format(attendee.booking.createdAt),
                   style: TextStyle(
-                      fontSize: 11, color: cs.onSurface.withValues(alpha:0.45)),
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.45)),
                 ),
               ],
             ),
