@@ -57,13 +57,15 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
 
     if (!mounted) return;
+    final bookedSessionIds = results[1] as Set<String>;
     setState(() {
       _upcomingSessions = results[0] as List<Session>;
-      _bookedSessionIds = results[1] as Set<String>;
+      _bookedSessionIds = bookedSessionIds;
       _completedBookings = results[2] as List<Booking>;
       _ratingsMap = results[3] as Map<String, SessionRating>;
       _loadingQuickBook = false;
     });
+    await _notificationService.syncReminders(bookedSessionIds);
   }
 
   void _onRatingSubmitted(SessionRating rating) {
@@ -98,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       await _bookingService.cancelBooking(booking: booking);
+      await _notificationService.cancelSessionReminders(booking.sessionId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Session cancelled')),

@@ -131,6 +131,22 @@ class NotificationService {
     await _local.cancel(_notifIdFor(sessionId));
   }
 
+  // ── Sync reminders on app load to cancel stale notifications ─────────────
+
+  /// Cancels any pending local reminders whose session is no longer actively
+  /// booked. Call this after loading the user's active bookings to clean up
+  /// notifications left over from admin-cancelled sessions.
+  Future<void> syncReminders(Set<String> activeSessionIds) async {
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return;
+    final expectedIds = activeSessionIds.map(_notifIdFor).toSet();
+    final pending = await _local.pendingNotificationRequests();
+    for (final notif in pending) {
+      if (!expectedIds.contains(notif.id)) {
+        await _local.cancel(notif.id);
+      }
+    }
+  }
+
   // ── Firestore notification stream (used by NotificationsScreen) ──────────
 
   Stream<List<AppNotification>> notificationsStream(String userId) {
