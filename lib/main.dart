@@ -3,8 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/version_check_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_shell.dart';
+import 'screens/update_required_screen.dart';
 import 'models/user_model.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/verification_screen.dart';
@@ -32,7 +34,42 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthGate(),
+      home: const VersionGate(),
+    );
+  }
+}
+
+class VersionGate extends StatefulWidget {
+  const VersionGate({super.key});
+
+  @override
+  State<VersionGate> createState() => _VersionGateState();
+}
+
+class _VersionGateState extends State<VersionGate> {
+  late final Future<bool> _versionCheck;
+
+  @override
+  void initState() {
+    super.initState();
+    _versionCheck = VersionCheckService().isUpToDate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _versionCheck,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.data == false) {
+          return const UpdateRequiredScreen();
+        }
+        return const AuthGate();
+      },
     );
   }
 }
