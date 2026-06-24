@@ -13,7 +13,7 @@ class VersionCheckService {
         fetchTimeout: const Duration(seconds: 10),
         minimumFetchInterval: const Duration(hours: 1),
       ));
-      await remoteConfig.setDefaults({_minVersionKey: '1.0.4'});
+      await remoteConfig.setDefaults({_minVersionKey: '1.0.5'});
       await remoteConfig.fetchAndActivate();
 
       final minVersion = remoteConfig.getString(_minVersionKey);
