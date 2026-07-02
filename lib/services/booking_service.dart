@@ -38,6 +38,10 @@ class BookingService {
       final DateTime sessionStart =
           (sessionData['startsAt'] as Timestamp).toDate();
 
+      if (DateTime.now().isAfter(sessionStart)) {
+        throw Exception('Cannot book a session that has already started.');
+      }
+
       // If nobody has booked yet, close booking 30 minutes before start.
       if (bookedCount == 0 &&
           sessionStart.difference(DateTime.now()).inMinutes < 30) {
