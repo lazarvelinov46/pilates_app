@@ -249,8 +249,19 @@ class UserService {
 
     // After the transaction: link the trial booking to the new promotion so
     // that any future cancellation uses the normal refund path.
+    // If the trial session already happened we also mark attendanceRecorded=true
+    // here, because the new promotion already starts with attended:1. Without
+    // this, syncAttendedSessions() would see a past booking with
+    // attendanceRecorded=false and promotionCreatedAt set, and would increment
+    // attended a second time — producing the "2 attended instead of 1" bug.
     if (trialBookingRef != null) {
-      await trialBookingRef.update({'promotionCreatedAt': promoCreatedAt});
+      final Map<String, dynamic> bookingUpdates = {
+        'promotionCreatedAt': promoCreatedAt,
+      };
+      if (!trialSessionIsFuture) {
+        bookingUpdates['attendanceRecorded'] = true;
+      }
+      await trialBookingRef.update(bookingUpdates);
     }
 
     // Record the assignment for owner audit history.
